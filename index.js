@@ -20,7 +20,7 @@ const DB_FILE = path.join(__dirname, 'db.json');
 const recipeStore = new Map();
 const mealPlanStore = new Map();
 const pendingReceiptItems = new Map();
-const generatedImageCache = new Map(); // Stores exact dish JPEG/PNG buffers for LINE Flex cards
+const generatedImageCache = new Map();
 let cachedModels = null;
 let cachedImageModel = null;
 
@@ -365,10 +365,15 @@ app.get('/dish-img/:id', (req, res) => {
 });
 
 app.post('/webhook', line.middleware(lineConfig), (req, res) => {
-  console.log('📩 Webhook hit! Events:', req.body.events.length);
+  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  const host = req.headers['x-forwarded-host'] || req.get('host');
+  const publicBaseUrl = host ? `${proto}://${host}` : '';
+  console.log('📩 Webhook hit! Events:', req.body.events.length, '| BaseURL:', publicBaseUrl);
   res.status(200).end();
   req.body.events.forEach((event) => {
-    handleEvent(event).catch((err) => console.error('❌ Error:', err?.status, err?.message, JSON.stringify(err?.errors || err?.body || '')));
+    handleEvent(event, publicBaseUrl).catch((err) =>
+      console.error('❌ Error:', err?.status, err?.message, JSON.stringify(err?.errors || err?.body || ''))
+    );
   });
 });
 
@@ -456,7 +461,7 @@ async function getRecipeImageUrl(recipe, usedUrls = new Set(), publicBaseUrl = '
     }
   }
 
-  // 2. Fallback: Exact Dish Name Search in TheMealDB (Only Exact Dish Matches — Never Generic Ingredient Desserts!)
+  // 2. Fallback: Exact Dish Name Search in TheMealDB
   for (const query of [recipe.canonicalDish, recipe.title].filter(Boolean)) {
     try {
       const res = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(query)}`);
@@ -471,7 +476,7 @@ async function getRecipeImageUrl(recipe, usedUrls = new Set(), publicBaseUrl = '
     } catch {}
   }
 
-  // 3. Final Verified Savory Dish Fallbacks (Guaranteed Real Savory Meals, Never Cakes!)
+  // 3. Final Verified Savory Dish Fallbacks
   const savoryFallbacks = [
     'https://www.themealdb.com/images/media/meals/wvpsxx1468256321.jpg',
     'https://www.themealdb.com/images/media/meals/1550441882.jpg',
@@ -857,7 +862,6 @@ async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterSt
     prepared.push(normalizedRecipe);
   }
 
-  // Generate all 3 exact dish photos in parallel for maximum speed!
   const imageUrls = await Promise.all(
     prepared.map((r) => getRecipeImageUrl(r, usedUrls, publicBaseUrl))
   );
@@ -1568,24 +1572,6 @@ async function handleEvent(event, publicBaseUrl = '') {
 
   return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildWelcomeCard()] });
 }
-
-// Wrap webhook route to pass the incoming Render HTTPS host automatically
-app._router.stack.forEach((layer) => {
-  if (layer.route && layer.route.path === '/webhook') {
-    layer.route.stack[layer.route.stack.length - 1].handle = (req, res) => {
-      const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-      const host = req.headers['x-forwarded-host'] || req.get('host');
-      const publicBaseUrl = host ? `${proto}://${host}` : '';
-      console.log('📩 Webhook hit! Events:', req.body.events.length, '| BaseURL:', publicBaseUrl);
-      res.status(200).end();
-      req.body.events.forEach((event) => {
-        handleEvent(event, publicBaseUrl).catch((err) =>
-          console.error('❌ Error:', err?.status, err?.message, JSON.stringify(err?.errors || err?.body || ''))
-        );
-      });
-    };
-  }
-});
 
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, async () => {
