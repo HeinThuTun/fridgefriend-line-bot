@@ -22,6 +22,23 @@ const mealPlanStore = new Map();
 const pendingReceiptItems = new Map();
 let cachedModels = null;
 
+// Clean up expired recipe/meal-plan cache every 30 minutes (keeps RAM flat for 70+ users)
+setInterval(() => {
+  const cutoff = Date.now() - 2 * 60 * 60 * 1000;
+  for (const key of recipeStore.keys()) {
+    const ts = Number(key.split('_')[0]);
+    if (ts && ts < cutoff) recipeStore.delete(key);
+  }
+  for (const key of mealPlanStore.keys()) {
+    const ts = Number(key.split('_')[0]);
+    if (ts && ts < cutoff) mealPlanStore.delete(key);
+  }
+  for (const key of pendingReceiptItems.keys()) {
+    const ts = Number(key);
+    if (ts && ts < cutoff) pendingReceiptItems.delete(key);
+  }
+}, 30 * 60 * 1000).unref();
+
 // --- Multi-User Persistence + Full 5-Stream B2B Analytics (db.json) ---
 function loadDB() {
   try {
@@ -57,12 +74,18 @@ function loadDB() {
 
 const db = loadDB();
 
+// Non-blocking debounced disk writer (batches concurrent writes every 2s)
+let saveTimer = null;
 function saveDB() {
-  try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf8');
-  } catch (e) {
-    console.warn('⚠️ Failed to write db.json:', e.message);
-  }
+  if (saveTimer) return;
+  saveTimer = setTimeout(async () => {
+    saveTimer = null;
+    try {
+      await fs.promises.writeFile(DB_FILE, JSON.stringify(db, null, 2), 'utf8');
+    } catch (e) {
+      console.warn('⚠️ Failed to write db.json:', e.message);
+    }
+  }, 2000);
 }
 
 function getTodayKey() {
@@ -388,27 +411,22 @@ async function getAvailableModels() {
   return ['gemini-2.5-flash'];
 }
 
+// Single-call sequential fallback (avoids 3x parallel RPM bursts so 70+ concurrent users run smoothly)
 async function generateWithFallback(contents, config) {
   const models = await getAvailableModels();
-  try {
-    const res = await Promise.any(models.slice(0, 3).map(async (model) => {
-      const out = await ai.models.generateContent({ model, contents, config });
-      console.log(`✅ Parallel winner: ${model}`);
-      return out;
-    }));
-    return res;
-  } catch {
-    console.warn('⚠️ Parallel burst hit limit, retrying sequentially...');
-  }
-
   let lastErr;
-  for (const model of models) {
+
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
     try {
-      await new Promise((r) => setTimeout(r, 1200));
       const res = await ai.models.generateContent({ model, contents, config });
-      console.log(`✅ Fallback winner: ${model}`);
+      console.log(`✅ Winner: ${model}`);
       return res;
-    } catch (err) { lastErr = err; }
+    } catch (err) {
+      lastErr = err;
+      console.warn(`⚠️ ${model} failed (${err?.status || err?.message}), trying next...`);
+      await new Promise((r) => setTimeout(r, 800 + Math.random() * 400));
+    }
   }
   throw lastErr;
 }
@@ -1699,6 +1717,8 @@ const server = app.listen(PORT, async () => {
 
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, saving db.json and closing server...');
-  saveDB();
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf8');
+  } catch {}
   server.close(() => process.exit(0));
 });
