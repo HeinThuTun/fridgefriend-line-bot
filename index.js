@@ -20,8 +20,45 @@ const DB_FILE = path.join(__dirname, 'db.json');
 const recipeStore = new Map();
 const mealPlanStore = new Map();
 const pendingReceiptItems = new Map();
-const imageBufferCache = new Map();
 let cachedModels = null;
+
+// --- Verified Real Dish Photo Catalog (Every URL is a Confirmed Live 200 OK Food Photo) ---
+const DISH_PHOTO_CATALOG = {
+  // Beef & Stews
+  beef_stew: 'https://www.themealdb.com/images/media/meals/sytuqu1511553355.jpg',        // Beef Bourguignon / Braised Beef Stew
+  beef_short_rib: 'https://www.themealdb.com/images/media/meals/ursuup1487348423.jpg',   // Beef Brisket / Braised Ribs
+  beef_soup: 'https://www.themealdb.com/images/media/meals/1529444113.jpg',              // Szechuan / Asian Beef Broth Soup
+  beef_stir_fry: 'https://www.themealdb.com/images/media/meals/1529444830.jpg',          // Beef Stir Fry / Lo Mein
+  beef_steak: 'https://www.themealdb.com/images/media/meals/vussxq1511882648.jpg',       // Steak & Vegetables
+  beef_curry: 'https://www.themealdb.com/images/media/meals/ssrrrs1503664277.jpg',       // Beef Rendang / Rich Beef Curry
+
+  // Chicken
+  thai_basil_chicken: 'https://www.themealdb.com/images/media/meals/1529446352.jpg',     // Chicken Stir Fry with Basil/Chili
+  teriyaki_chicken: 'https://www.themealdb.com/images/media/meals/wvpsxx1468256321.jpg',   // Teriyaki Chicken & Rice
+  chicken_curry: 'https://www.themealdb.com/images/media/meals/wyxwsp1486979827.jpg',      // Chicken Handi / Curry
+  thai_green_curry: 'https://www.themealdb.com/images/media/meals/sstssx1487349585.jpg',   // Thai Green Curry
+  grilled_chicken: 'https://www.themealdb.com/images/media/meals/qptpvt1487339892.jpg',    // Tandoori / Roasted Garlic Chicken
+  chicken_soup: 'https://www.themealdb.com/images/media/meals/1529446137.jpg',           // Asian Chicken Soup / Congee
+
+  // Pork
+  pork_stir_fry: 'https://www.themealdb.com/images/media/meals/1529443236.jpg',          // Sweet & Sour / Stir-Fried Pork
+  pork_chop: 'https://www.themealdb.com/images/media/meals/yyrrqp1511881632.jpg',          // Pan-Seared Pork Chop
+
+  // Eggs & Tofu
+  egg_shakshuka: 'https://www.themealdb.com/images/media/meals/g373701551450225.jpg',      // Eggs in Spiced Tomato Sauce
+  egg_omelette: 'https://www.themealdb.com/images/media/meals/1550441882.jpg',           // Savory Egg & Potato Skillet
+  egg_fried_rice: 'https://www.themealdb.com/images/media/meals/1529445434.jpg',         // Egg & Vegetable Fried Rice
+  tofu_veggie: 'https://www.themealdb.com/images/media/meals/1529445893.jpg',            // Mapo Tofu / Stir-Fried Tofu & Greens
+
+  // Pasta & Noodles
+  spaghetti_bolognese: 'https://www.themealdb.com/images/media/meals/sutysw1468247559.jpg', // Spaghetti Bolognese (Beef & Tomato Pasta)
+  creamy_pasta: 'https://www.themealdb.com/images/media/meals/syqypv1486981727.jpg',       // Creamy Chicken/Garlic Pasta
+  pad_thai_noodles: 'https://www.themealdb.com/images/media/meals/uuuspp1468263334.jpg',   // Stir-Fried Rice Noodles
+
+  // Seafood
+  salmon_dish: 'https://www.themealdb.com/images/media/meals/1548772327.jpg',            // Baked / Pan-Seared Salmon
+  shrimp_seafood: 'https://www.themealdb.com/images/media/meals/1529445198.jpg',         // Garlic Shrimp / Prawns
+};
 
 // --- Multi-User Persistence + Full 5-Stream B2B Analytics (db.json) ---
 function loadDB() {
@@ -353,96 +390,11 @@ async function setupRichMenu() {
 
 app.get('/', (req, res) => res.send('FridgeFriend Pro LINE Bot is running!'));
 
-// --- Dedicated Dish Photo Proxy Route (Fetches Exact Web Food Thumbnail for ANY Dish & Streams JPEG to LINE) ---
-async function fetchDishImageBuffer(query, rank = 0) {
-  const cacheKey = `${query.toLowerCase()}_${rank}`;
-  if (imageBufferCache.has(cacheKey)) return imageBufferCache.get(cacheKey);
-
-  const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-
-  // 1. Live Web Image Search Thumbnail Extraction (Bing Images) — Matches ANY Dish on Earth!
-  try {
-    const searchUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(query + ' cooked dish food plated')}&form=HDRSC2&first=1`;
-    const htmlRes = await fetch(searchUrl, {
-      headers: { 'User-Agent': ua, 'Accept-Language': 'en-US,en;q=0.9' },
-    });
-    if (htmlRes.ok) {
-      const html = await htmlRes.text();
-      // Extract verified Bing thumbnail CDN URLs (tse1-4.mm.bing.net) which always return 200 OK JPEGs
-      const thumbMatches = [...html.matchAll(/https:\/\/tse\d\.mm\.bing\.net\/th\?id=OIP\.[^"&<>]+/g)].map((m) =>
-        m[0].replace(/&amp;/g, '&')
-      );
-      const uniqueThumbs = Array.from(new Set(thumbMatches));
-      const chosenThumb = uniqueThumbs[rank % Math.max(uniqueThumbs.length, 1)] || uniqueThumbs[0];
-
-      if (chosenThumb) {
-        const imgRes = await fetch(`${chosenThumb}&w=800&h=520&c=7&rs=1&p=0`, {
-          headers: { 'User-Agent': ua },
-        });
-        if (imgRes.ok) {
-          const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
-          const arrayBuf = await imgRes.arrayBuffer();
-          const buf = Buffer.from(arrayBuf);
-          if (buf.length > 2500) {
-            const result = { buffer: buf, contentType };
-            imageBufferCache.set(cacheKey, result);
-            if (imageBufferCache.size > 100) imageBufferCache.delete(imageBufferCache.keys().next().value);
-            console.log(`🖼️ Web Dish Photo Hit for "${query}": ${chosenThumb}`);
-            return result;
-          }
-        }
-      }
-    }
-  } catch (e) {
-    console.warn(`⚠️ Bing dish search warning for "${query}":`, e.message);
-  }
-
-  // 2. Fallback: Pollinations AI Real-Time Food Photo Generator
-  try {
-    const aiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(
-      `professional overhead food photography of ${query}, freshly cooked plated meal, natural lighting, restaurant quality`
-    )}?width=800&height=520&nologo=true&seed=${rank + 10}`;
-    const aiRes = await fetch(aiUrl, { headers: { 'User-Agent': ua } });
-    if (aiRes.ok) {
-      const contentType = aiRes.headers.get('content-type') || 'image/jpeg';
-      const buf = Buffer.from(await aiRes.arrayBuffer());
-      if (buf.length > 2500) {
-        const result = { buffer: buf, contentType };
-        imageBufferCache.set(cacheKey, result);
-        return result;
-      }
-    }
-  } catch (e) {
-    console.warn(`⚠️ Pollinations fallback warning:`, e.message);
-  }
-
-  return null;
-}
-
-app.get('/dish-photo', async (req, res) => {
-  const q = (req.query.q || 'delicious home cooked meal').trim();
-  const r = parseInt(req.query.r || '0', 10);
-  try {
-    const img = await fetchDishImageBuffer(q, r);
-    if (img && img.buffer) {
-      res.setHeader('Content-Type', img.contentType || 'image/jpeg');
-      res.setHeader('Cache-Control', 'public, max-age=86400');
-      return res.status(200).send(img.buffer);
-    }
-  } catch (e) {
-    console.error('❌ /dish-photo error:', e.message);
-  }
-  return res.redirect('https://www.themealdb.com/images/media/meals/sutysw1468247559.jpg');
-});
-
 app.post('/webhook', line.middleware(lineConfig), (req, res) => {
-  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-  const host = req.headers['x-forwarded-host'] || req.get('host');
-  const publicBaseUrl = host ? `${proto}://${host}` : '';
   console.log('📩 Webhook hit! Events:', req.body.events.length);
   res.status(200).end();
   req.body.events.forEach((event) => {
-    handleEvent(event, publicBaseUrl).catch((err) =>
+    handleEvent(event).catch((err) =>
       console.error('❌ Error:', err?.status, err?.message, JSON.stringify(err?.errors || err?.body || ''))
     );
   });
@@ -455,15 +407,65 @@ async function getMessageBase64(messageId) {
   return Buffer.concat(chunks).toString('base64');
 }
 
-// --- 100% Exact Dish Photo URL Builder (Pre-warms Cache & Serves via /dish-photo on Your Render Server) ---
-async function getRecipeImageUrl(recipe, idx = 0, publicBaseUrl = '') {
-  const exactDish = (recipe.canonicalDish || recipe.title || 'stir fry dish').trim();
-  const baseUrl = (process.env.RENDER_EXTERNAL_URL || publicBaseUrl || 'https://fridgefriend-line-bot.onrender.com').replace(/\/$/, '');
+// --- Zero-Timeout, Zero-Block Verified Dish Photo Resolver ---
+function getRecipeImageUrl(recipe, usedUrls = new Set()) {
+  const photoKey = (recipe.photoKey || '').trim().toLowerCase();
+  const text = `${recipe.canonicalDish || ''} ${recipe.title || ''} ${recipe.mainIngredient || ''}`.toLowerCase();
 
-  // Pre-fetch and cache the exact dish photo buffer in memory before sending the Flex card to LINE
-  await fetchDishImageBuffer(exactDish, idx);
+  // 1. Direct match from Gemini's selected photoKey
+  if (photoKey && DISH_PHOTO_CATALOG[photoKey] && !usedUrls.has(DISH_PHOTO_CATALOG[photoKey])) {
+    usedUrls.add(DISH_PHOTO_CATALOG[photoKey]);
+    return DISH_PHOTO_CATALOG[photoKey];
+  }
 
-  return `${baseUrl}/dish-photo?q=${encodeURIComponent(exactDish)}&r=${idx}`;
+  // 2. Smart rule-based resolver matching the exact dish type & protein (never reuses a URL already shown in the carousel)
+  const candidates = [];
+  if (/soup|guk|broth|congee|jook/.test(text)) {
+    if (/beef|rib/.test(text)) candidates.push(DISH_PHOTO_CATALOG.beef_soup, DISH_PHOTO_CATALOG.beef_stew);
+    else candidates.push(DISH_PHOTO_CATALOG.chicken_soup, DISH_PHOTO_CATALOG.beef_soup);
+  }
+  if (/stew|brais|galbi|jjim|pot roast|brisket/.test(text)) {
+    candidates.push(DISH_PHOTO_CATALOG.beef_short_rib, DISH_PHOTO_CATALOG.beef_stew, DISH_PHOTO_CATALOG.beef_curry);
+  }
+  if (/curry|rendang|masala/.test(text)) {
+    if (/beef/.test(text)) candidates.push(DISH_PHOTO_CATALOG.beef_curry, DISH_PHOTO_CATALOG.beef_stew);
+    else candidates.push(DISH_PHOTO_CATALOG.thai_green_curry, DISH_PHOTO_CATALOG.chicken_curry);
+  }
+  if (/pasta|spaghetti|bolognese|ragu|penne|fettuccine|alfredo/.test(text)) {
+    if (/cream|alfredo|carbonara|white/.test(text)) candidates.push(DISH_PHOTO_CATALOG.creamy_pasta, DISH_PHOTO_CATALOG.spaghetti_bolognese);
+    else candidates.push(DISH_PHOTO_CATALOG.spaghetti_bolognese, DISH_PHOTO_CATALOG.creamy_pasta);
+  }
+  if (/noodle|pad thai|pad see ew|lo mein|ramen/.test(text)) {
+    candidates.push(DISH_PHOTO_CATALOG.pad_thai_noodles, DISH_PHOTO_CATALOG.beef_stir_fry);
+  }
+  if (/fried rice|rice bowl/.test(text)) {
+    candidates.push(DISH_PHOTO_CATALOG.egg_fried_rice, DISH_PHOTO_CATALOG.teriyaki_chicken);
+  }
+  if (/egg|omelette|shakshuka|scramble/.test(text)) {
+    candidates.push(DISH_PHOTO_CATALOG.egg_omelette, DISH_PHOTO_CATALOG.egg_shakshuka, DISH_PHOTO_CATALOG.egg_fried_rice);
+  }
+  if (/tofu|veggie|vegetable|salad/.test(text)) {
+    candidates.push(DISH_PHOTO_CATALOG.tofu_veggie, DISH_PHOTO_CATALOG.egg_fried_rice);
+  }
+  if (/beef|rib|steak/.test(text)) {
+    candidates.push(DISH_PHOTO_CATALOG.beef_stir_fry, DISH_PHOTO_CATALOG.beef_short_rib, DISH_PHOTO_CATALOG.beef_steak, DISH_PHOTO_CATALOG.beef_stew);
+  }
+  if (/pork/.test(text)) {
+    candidates.push(DISH_PHOTO_CATALOG.pork_stir_fry, DISH_PHOTO_CATALOG.pork_chop);
+  }
+  if (/salmon|fish|shrimp|prawn|seafood/.test(text)) {
+    candidates.push(DISH_PHOTO_CATALOG.salmon_dish, DISH_PHOTO_CATALOG.shrimp_seafood);
+  }
+  candidates.push(
+    DISH_PHOTO_CATALOG.thai_basil_chicken,
+    DISH_PHOTO_CATALOG.teriyaki_chicken,
+    DISH_PHOTO_CATALOG.grilled_chicken,
+    DISH_PHOTO_CATALOG.egg_fried_rice
+  );
+
+  const chosen = candidates.find((u) => u && !usedUrls.has(u)) || DISH_PHOTO_CATALOG.teriyaki_chicken;
+  usedUrls.add(chosen);
+  return chosen;
 }
 
 async function getAvailableModels() {
@@ -799,13 +801,14 @@ function buildFlashDealCard() {
   };
 }
 
-async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = '', publicBaseUrl = '') {
+function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = '') {
   const safeRecipes = Array.isArray(recipes) && recipes.length > 0
     ? recipes.slice(0, 5)
     : [{
         title: 'Thai Garlic Chicken Stir-Fry',
         emoji: '🍳',
-        canonicalDish: 'Thai Garlic Chicken Stir Fry with Rice',
+        photoKey: 'thai_basil_chicken',
+        canonicalDish: 'Thai Garlic Chicken Stir Fry',
         mainIngredient: 'chicken',
         calories: 460,
         protein: 38,
@@ -816,8 +819,9 @@ async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterSt
         steps: ['Slice chicken and mince garlic.', 'Stir-fry over medium-high heat for 8 minutes.', 'Season with soy sauce and serve hot over rice!'],
       }];
 
+  const usedUrls = new Set();
   const usedSponsors = new Set();
-  const prepared = [];
+  const bubbles = [];
 
   for (let idx = 0; idx < safeRecipes.length; idx++) {
     const recipe = safeRecipes[idx];
@@ -837,20 +841,11 @@ async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterSt
     const sponsor = getContextualSponsor(`${title} ${recipe.canonicalDish || ''} ${recipe.mainIngredient || ''}`, filterStyle, usedSponsors);
     const normalizedRecipe = { ...recipe, id: recipeId, title, time, calories, protein, costThb, macros, allIngredients, missingItems: missing, steps, sponsor };
     recipeStore.set(recipeId, normalizedRecipe);
-    prepared.push(normalizedRecipe);
-  }
 
-  // Pre-fetch all 3 exact dish photos in parallel
-  const imageUrls = await Promise.all(
-    prepared.map((r, idx) => getRecipeImageUrl(r, idx, publicBaseUrl))
-  );
-
-  const bubbles = prepared.map((normalizedRecipe, idx) => {
-    const { id: recipeId, title, time, macros, missingItems: missing, sponsor } = normalizedRecipe;
-    const imageUrl = imageUrls[idx];
+    const imageUrl = getRecipeImageUrl(normalizedRecipe, usedUrls);
     const hasMissing = missing[0] !== 'None — ready to cook!' && !/^none/i.test(missing[0]);
 
-    return {
+    bubbles.push({
       type: 'bubble',
       size: 'mega',
       hero: { type: 'image', url: imageUrl, size: 'full', aspectRatio: '20:13', aspectMode: 'cover' },
@@ -859,7 +854,7 @@ async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterSt
         layout: 'vertical',
         spacing: 'sm',
         contents: [
-          { type: 'text', text: `${normalizedRecipe.emoji || '🍳'} ${title}`, weight: 'bold', size: 'lg', wrap: true },
+          { type: 'text', text: `${recipe.emoji || '🍳'} ${title}`, weight: 'bold', size: 'lg', wrap: true },
           {
             type: 'box',
             layout: 'vertical',
@@ -918,8 +913,8 @@ async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterSt
           },
         ],
       },
-    };
-  });
+    });
+  }
 
   const msg = { type: 'flex', altText: 'FridgeFriend Recipe Suggestions 🍳', contents: { type: 'carousel', contents: bubbles } };
   if (includeQuickReplies) msg.quickReply = getFilterQuickReplies();
@@ -1178,8 +1173,8 @@ function buildShoppingListCard(title, items, allIngredients = []) {
   };
 }
 
-// --- Gemini AI Generators (Auto-Matches Burmese / Thai / English Output) ---
-async function generateRecipesForSession(session, filterStyle = null, publicBaseUrl = '') {
+// --- Gemini AI Generators (Auto-Matches Burmese / Thai / English Output + Exact PhotoKey Selection) ---
+async function generateRecipesForSession(session, filterStyle = null) {
   const styleInstructions = {
     budget_60: 'Focus strictly on STUDENT BUDGET-FRIENDLY meals costing UNDER 60 THB per serving using affordable local Thai ingredients.',
     high_protein: 'Focus strictly on HIGH-PROTEIN fitness meals (40g+ protein per serving).',
@@ -1192,7 +1187,16 @@ async function generateRecipesForSession(session, filterStyle = null, publicBase
 LANGUAGE RULE (CRITICAL):
 - Detect the language of the user's input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English).
 - Write "title", "time", "allIngredients", "missingItems", and "steps" in THAT EXACT SAME LANGUAGE (e.g., if the user writes or speaks in Burmese, write natural Burmese; if in Thai, write natural Thai; if in English or an image without text, write in English).
-- ALWAYS keep "canonicalDish" and "mainIngredient" in ENGLISH so the dish photo search finds the exact food photo.
+- ALWAYS keep "photoKey", "canonicalDish", and "mainIngredient" in ENGLISH.
+
+PHOTO KEY RULE (CRITICAL):
+- Choose the SINGLE BEST matching "photoKey" from this exact list (use a DIFFERENT photoKey for each of the 3 recipes):
+  beef_stew, beef_short_rib, beef_soup, beef_stir_fry, beef_steak, beef_curry,
+  thai_basil_chicken, teriyaki_chicken, chicken_curry, thai_green_curry, grilled_chicken, chicken_soup,
+  pork_stir_fry, pork_chop,
+  egg_shakshuka, egg_omelette, egg_fried_rice, tofu_veggie,
+  spaghetti_bolognese, creamy_pasta, pad_thai_noodles,
+  salmon_dish, shrimp_seafood
 
 IMPORTANT INGREDIENT RULE:
 - Compare EVERY ingredient required to cook the dish (including cooking oil, sauces, seasonings, sugar, salt, aromatics, vegetables, and rice/noodles) against ONLY what the user explicitly provided.
@@ -1205,8 +1209,9 @@ Return ONLY valid JSON (no markdown) matching this exact format:
     {
       "title": "Dish Name in user's language",
       "emoji": "🍗",
-      "canonicalDish": "exact descriptive ENGLISH name of the dish for image search (e.g., Spaghetti Bolognese with Minced Beef, Beef and Pasta Skillet with Tomato Sauce, Thai Basil Chicken Kra Pao, Burmese Chicken Potato Curry)",
-      "mainIngredient": "single primary ingredient in lowercase ENGLISH (e.g., chicken, egg, pork, shrimp, beef, salmon, tofu, pasta)",
+      "photoKey": "one exact key from the list above (e.g. beef_short_rib, beef_soup, egg_omelette)",
+      "canonicalDish": "ENGLISH dish name",
+      "mainIngredient": "single primary ingredient in lowercase ENGLISH",
       "calories": 520,
       "protein": 44,
       "costThb": 48,
@@ -1226,7 +1231,7 @@ Suggest 3 distinct, practical, delicious recipes.`;
   const response = await generateWithFallback(geminiContents, { responseMimeType: 'application/json' });
   const parsed = JSON.parse(response.text.replace(/```json|```/g, '').trim());
   const recipeList = Array.isArray(parsed) ? parsed : (parsed.recipes || parsed.meals || Object.values(parsed).find(Array.isArray) || []);
-  return buildRecipeCarousel(recipeList, true, filterStyle || '', publicBaseUrl);
+  return buildRecipeCarousel(recipeList, true, filterStyle || '');
 }
 
 async function generateMealPlanForSession(session) {
@@ -1260,7 +1265,7 @@ Return ONLY valid JSON (no markdown) matching this exact format:
 }
 
 // --- Webhook Event Handler ---
-async function handleEvent(event, publicBaseUrl = '') {
+async function handleEvent(event) {
   const userId = event.source?.userId || 'default_user';
   const session = getSession(userId);
 
@@ -1366,7 +1371,7 @@ async function handleEvent(event, publicBaseUrl = '') {
       session.lastText = items.join(', ');
       recordPantryTrends(session.lastText, []);
       if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-      const carousel = await generateRecipesForSession(session, null, publicBaseUrl);
+      const carousel = await generateRecipesForSession(session);
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `🍳 Cooking with your ${items.length} scanned receipt items:` }, carousel] });
     }
 
@@ -1379,7 +1384,7 @@ async function handleEvent(event, publicBaseUrl = '') {
     if (action === 'filter') {
       if (!session.lastPromptType) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: 'Send ingredients, a voice note, or a fridge photo first! 🥦📸' }] });
       if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-      const carousel = await generateRecipesForSession(session, params.get('style'), publicBaseUrl);
+      const carousel = await generateRecipesForSession(session, params.get('style'));
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
     }
   }
@@ -1487,7 +1492,7 @@ async function handleEvent(event, publicBaseUrl = '') {
 
     if (lower === 'saved' || lower === 'cookbook' || lower === 'favorites') {
       if (session.saved.length === 0) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '📖 Your Cookbook is empty! Tap "❤️ Save" on any recipe card to save it here.' }] });
-      const savedCarousel = await buildRecipeCarousel(session.saved, false, '', publicBaseUrl);
+      const savedCarousel = buildRecipeCarousel(session.saved, false);
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [savedCarousel] });
     }
 
@@ -1497,7 +1502,7 @@ async function handleEvent(event, publicBaseUrl = '') {
     session.lastImageBase64 = null;
     recordPantryTrends(rawText, []);
 
-    const carousel = await generateRecipesForSession(session, null, publicBaseUrl);
+    const carousel = await generateRecipesForSession(session);
     return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
   }
 
@@ -1526,7 +1531,7 @@ async function handleEvent(event, publicBaseUrl = '') {
     session.lastText = '';
     saveDB();
 
-    const carousel = await generateRecipesForSession(session, null, publicBaseUrl);
+    const carousel = await generateRecipesForSession(session);
     return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
   }
 
@@ -1545,7 +1550,7 @@ async function handleEvent(event, publicBaseUrl = '') {
     session.lastImageBase64 = null;
     recordPantryTrends(spokenIngredients, []);
 
-    const carousel = await generateRecipesForSession(session, null, publicBaseUrl);
+    const carousel = await generateRecipesForSession(session);
     return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `🎙️ Heard: "${spokenIngredients}"` }, carousel] });
   }
 
