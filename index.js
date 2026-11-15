@@ -22,44 +22,6 @@ const mealPlanStore = new Map();
 const pendingReceiptItems = new Map();
 let cachedModels = null;
 
-// --- Verified Real Dish Photo Catalog (Every URL is a Confirmed Live 200 OK Food Photo) ---
-const DISH_PHOTO_CATALOG = {
-  // Beef & Stews
-  beef_stew: 'https://www.themealdb.com/images/media/meals/sytuqu1511553355.jpg',        // Beef Bourguignon / Braised Beef Stew
-  beef_short_rib: 'https://www.themealdb.com/images/media/meals/ursuup1487348423.jpg',   // Beef Brisket / Braised Ribs
-  beef_soup: 'https://www.themealdb.com/images/media/meals/1529444113.jpg',              // Szechuan / Asian Beef Broth Soup
-  beef_stir_fry: 'https://www.themealdb.com/images/media/meals/1529444830.jpg',          // Beef Stir Fry / Lo Mein
-  beef_steak: 'https://www.themealdb.com/images/media/meals/vussxq1511882648.jpg',       // Steak & Vegetables
-  beef_curry: 'https://www.themealdb.com/images/media/meals/ssrrrs1503664277.jpg',       // Beef Rendang / Rich Beef Curry
-
-  // Chicken
-  thai_basil_chicken: 'https://www.themealdb.com/images/media/meals/1529446352.jpg',     // Chicken Stir Fry with Basil/Chili
-  teriyaki_chicken: 'https://www.themealdb.com/images/media/meals/wvpsxx1468256321.jpg',   // Teriyaki Chicken & Rice
-  chicken_curry: 'https://www.themealdb.com/images/media/meals/wyxwsp1486979827.jpg',      // Chicken Handi / Curry
-  thai_green_curry: 'https://www.themealdb.com/images/media/meals/sstssx1487349585.jpg',   // Thai Green Curry
-  grilled_chicken: 'https://www.themealdb.com/images/media/meals/qptpvt1487339892.jpg',    // Tandoori / Roasted Garlic Chicken
-  chicken_soup: 'https://www.themealdb.com/images/media/meals/1529446137.jpg',           // Asian Chicken Soup / Congee
-
-  // Pork
-  pork_stir_fry: 'https://www.themealdb.com/images/media/meals/1529443236.jpg',          // Sweet & Sour / Stir-Fried Pork
-  pork_chop: 'https://www.themealdb.com/images/media/meals/yyrrqp1511881632.jpg',          // Pan-Seared Pork Chop
-
-  // Eggs & Tofu
-  egg_shakshuka: 'https://www.themealdb.com/images/media/meals/g373701551450225.jpg',      // Eggs in Spiced Tomato Sauce
-  egg_omelette: 'https://www.themealdb.com/images/media/meals/1550441882.jpg',           // Savory Egg & Potato Skillet
-  egg_fried_rice: 'https://www.themealdb.com/images/media/meals/1529445434.jpg',         // Egg & Vegetable Fried Rice
-  tofu_veggie: 'https://www.themealdb.com/images/media/meals/1529445893.jpg',            // Mapo Tofu / Stir-Fried Tofu & Greens
-
-  // Pasta & Noodles
-  spaghetti_bolognese: 'https://www.themealdb.com/images/media/meals/sutysw1468247559.jpg', // Spaghetti Bolognese (Beef & Tomato Pasta)
-  creamy_pasta: 'https://www.themealdb.com/images/media/meals/syqypv1486981727.jpg',       // Creamy Chicken/Garlic Pasta
-  pad_thai_noodles: 'https://www.themealdb.com/images/media/meals/uuuspp1468263334.jpg',   // Stir-Fried Rice Noodles
-
-  // Seafood
-  salmon_dish: 'https://www.themealdb.com/images/media/meals/1548772327.jpg',            // Baked / Pan-Seared Salmon
-  shrimp_seafood: 'https://www.themealdb.com/images/media/meals/1529445198.jpg',         // Garlic Shrimp / Prawns
-};
-
 // --- Multi-User Persistence + Full 5-Stream B2B Analytics (db.json) ---
 function loadDB() {
   try {
@@ -407,67 +369,6 @@ async function getMessageBase64(messageId) {
   return Buffer.concat(chunks).toString('base64');
 }
 
-// --- Zero-Timeout, Zero-Block Verified Dish Photo Resolver ---
-function getRecipeImageUrl(recipe, usedUrls = new Set()) {
-  const photoKey = (recipe.photoKey || '').trim().toLowerCase();
-  const text = `${recipe.canonicalDish || ''} ${recipe.title || ''} ${recipe.mainIngredient || ''}`.toLowerCase();
-
-  // 1. Direct match from Gemini's selected photoKey
-  if (photoKey && DISH_PHOTO_CATALOG[photoKey] && !usedUrls.has(DISH_PHOTO_CATALOG[photoKey])) {
-    usedUrls.add(DISH_PHOTO_CATALOG[photoKey]);
-    return DISH_PHOTO_CATALOG[photoKey];
-  }
-
-  // 2. Smart rule-based resolver matching the exact dish type & protein (never reuses a URL already shown in the carousel)
-  const candidates = [];
-  if (/soup|guk|broth|congee|jook/.test(text)) {
-    if (/beef|rib/.test(text)) candidates.push(DISH_PHOTO_CATALOG.beef_soup, DISH_PHOTO_CATALOG.beef_stew);
-    else candidates.push(DISH_PHOTO_CATALOG.chicken_soup, DISH_PHOTO_CATALOG.beef_soup);
-  }
-  if (/stew|brais|galbi|jjim|pot roast|brisket/.test(text)) {
-    candidates.push(DISH_PHOTO_CATALOG.beef_short_rib, DISH_PHOTO_CATALOG.beef_stew, DISH_PHOTO_CATALOG.beef_curry);
-  }
-  if (/curry|rendang|masala/.test(text)) {
-    if (/beef/.test(text)) candidates.push(DISH_PHOTO_CATALOG.beef_curry, DISH_PHOTO_CATALOG.beef_stew);
-    else candidates.push(DISH_PHOTO_CATALOG.thai_green_curry, DISH_PHOTO_CATALOG.chicken_curry);
-  }
-  if (/pasta|spaghetti|bolognese|ragu|penne|fettuccine|alfredo/.test(text)) {
-    if (/cream|alfredo|carbonara|white/.test(text)) candidates.push(DISH_PHOTO_CATALOG.creamy_pasta, DISH_PHOTO_CATALOG.spaghetti_bolognese);
-    else candidates.push(DISH_PHOTO_CATALOG.spaghetti_bolognese, DISH_PHOTO_CATALOG.creamy_pasta);
-  }
-  if (/noodle|pad thai|pad see ew|lo mein|ramen/.test(text)) {
-    candidates.push(DISH_PHOTO_CATALOG.pad_thai_noodles, DISH_PHOTO_CATALOG.beef_stir_fry);
-  }
-  if (/fried rice|rice bowl/.test(text)) {
-    candidates.push(DISH_PHOTO_CATALOG.egg_fried_rice, DISH_PHOTO_CATALOG.teriyaki_chicken);
-  }
-  if (/egg|omelette|shakshuka|scramble/.test(text)) {
-    candidates.push(DISH_PHOTO_CATALOG.egg_omelette, DISH_PHOTO_CATALOG.egg_shakshuka, DISH_PHOTO_CATALOG.egg_fried_rice);
-  }
-  if (/tofu|veggie|vegetable|salad/.test(text)) {
-    candidates.push(DISH_PHOTO_CATALOG.tofu_veggie, DISH_PHOTO_CATALOG.egg_fried_rice);
-  }
-  if (/beef|rib|steak/.test(text)) {
-    candidates.push(DISH_PHOTO_CATALOG.beef_stir_fry, DISH_PHOTO_CATALOG.beef_short_rib, DISH_PHOTO_CATALOG.beef_steak, DISH_PHOTO_CATALOG.beef_stew);
-  }
-  if (/pork/.test(text)) {
-    candidates.push(DISH_PHOTO_CATALOG.pork_stir_fry, DISH_PHOTO_CATALOG.pork_chop);
-  }
-  if (/salmon|fish|shrimp|prawn|seafood/.test(text)) {
-    candidates.push(DISH_PHOTO_CATALOG.salmon_dish, DISH_PHOTO_CATALOG.shrimp_seafood);
-  }
-  candidates.push(
-    DISH_PHOTO_CATALOG.thai_basil_chicken,
-    DISH_PHOTO_CATALOG.teriyaki_chicken,
-    DISH_PHOTO_CATALOG.grilled_chicken,
-    DISH_PHOTO_CATALOG.egg_fried_rice
-  );
-
-  const chosen = candidates.find((u) => u && !usedUrls.has(u)) || DISH_PHOTO_CATALOG.teriyaki_chicken;
-  usedUrls.add(chosen);
-  return chosen;
-}
-
 async function getAvailableModels() {
   if (cachedModels) return cachedModels;
   try {
@@ -801,15 +702,15 @@ function buildFlashDealCard() {
   };
 }
 
+// --- Zero-Image Culinary Dashboard Recipe Carousel (100% Instant, Zero Mismatches) ---
 function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = '') {
   const safeRecipes = Array.isArray(recipes) && recipes.length > 0
     ? recipes.slice(0, 5)
     : [{
         title: 'Thai Garlic Chicken Stir-Fry',
         emoji: '🍳',
-        photoKey: 'thai_basil_chicken',
-        canonicalDish: 'Thai Garlic Chicken Stir Fry',
-        mainIngredient: 'chicken',
+        cuisineTag: 'QUICK STIR-FRY',
+        usedIngredients: ['200g chicken breast', '2 cloves garlic'],
         calories: 460,
         protein: 38,
         costThb: 45,
@@ -819,7 +720,12 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
         steps: ['Slice chicken and mince garlic.', 'Stir-fry over medium-high heat for 8 minutes.', 'Season with soy sauce and serve hot over rice!'],
       }];
 
-  const usedUrls = new Set();
+  const headerThemes = [
+    { bg: '#065F46', badge: '#A7F3D0' }, // Emerald
+    { bg: '#1E3A8A', badge: '#BFDBFE' }, // Deep Navy
+    { bg: '#92400E', badge: '#FDE68A' }, // Warm Amber
+  ];
+
   const usedSponsors = new Set();
   const bubbles = [];
 
@@ -834,44 +740,98 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
     const macros = `${calories} kcal | ${protein}g P | ~${costThb} THB`;
     const allIngredients = Array.isArray(recipe.allIngredients) ? recipe.allIngredients : [];
     const missing = Array.isArray(recipe.missingItems) && recipe.missingItems.length > 0 ? recipe.missingItems : ['None — ready to cook!'];
+    const usedList = Array.isArray(recipe.usedIngredients) && recipe.usedIngredients.length > 0
+      ? recipe.usedIngredients.join(', ')
+      : allIngredients.slice(0, 2).join(', ') || 'Your fridge items';
     const steps = Array.isArray(recipe.steps) && recipe.steps.length > 0 ? recipe.steps : ['Prep your ingredients.', 'Cook over medium heat until done.', 'Season to taste and serve!'];
 
     recordPantryTrends('', missing);
 
-    const sponsor = getContextualSponsor(`${title} ${recipe.canonicalDish || ''} ${recipe.mainIngredient || ''}`, filterStyle, usedSponsors);
+    const sponsor = getContextualSponsor(`${title} ${recipe.mainIngredient || ''}`, filterStyle, usedSponsors);
     const normalizedRecipe = { ...recipe, id: recipeId, title, time, calories, protein, costThb, macros, allIngredients, missingItems: missing, steps, sponsor };
     recipeStore.set(recipeId, normalizedRecipe);
 
-    const imageUrl = getRecipeImageUrl(normalizedRecipe, usedUrls);
     const hasMissing = missing[0] !== 'None — ready to cook!' && !/^none/i.test(missing[0]);
+    const totalCount = Math.max(allIngredients.length, (hasMissing ? missing.length : 0) + 2);
+    const matchPct = hasMissing ? Math.max(40, Math.round(((totalCount - missing.length) / totalCount) * 100)) : 100;
+    const theme = headerThemes[idx % headerThemes.length];
+    const tag = (recipe.cuisineTag || `CHEF PICK #${idx + 1}`).toUpperCase().slice(0, 28);
 
     bubbles.push({
       type: 'bubble',
       size: 'mega',
-      hero: { type: 'image', url: imageUrl, size: 'full', aspectRatio: '20:13', aspectMode: 'cover' },
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: theme.bg,
+        paddingAll: 'lg',
+        spacing: 'xs',
+        contents: [
+          {
+            type: 'box',
+            layout: 'horizontal',
+            contents: [
+              { type: 'text', text: `${recipe.emoji || '🍳'} ${tag}`, color: theme.badge, size: 'xs', weight: 'bold', flex: 3 },
+              { type: 'text', text: `${matchPct}% MATCH`, color: '#FFFFFF', size: 'xs', weight: 'bold', align: 'end', flex: 2 },
+            ],
+          },
+          { type: 'text', text: title, color: '#FFFFFF', size: 'lg', weight: 'bold', wrap: true },
+          { type: 'text', text: `⏱️ ${time}`, color: theme.badge, size: 'xs' },
+        ],
+      },
       body: {
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
         contents: [
-          { type: 'text', text: `${recipe.emoji || '🍳'} ${title}`, weight: 'bold', size: 'lg', wrap: true },
+          // 3-Column Visual Macro & Cost Strip
           {
             type: 'box',
-            layout: 'vertical',
+            layout: 'horizontal',
             backgroundColor: '#ECFDF5',
             cornerRadius: 'md',
-            paddingAll: 'xs',
-            contents: [{ type: 'text', text: `🔥 ${macros}`, size: 'xs', weight: 'bold', color: '#047857', align: 'center' }],
+            paddingAll: 'sm',
+            contents: [
+              {
+                type: 'box',
+                layout: 'vertical',
+                flex: 1,
+                contents: [
+                  { type: 'text', text: 'CALORIES', size: 'xxs', color: '#065F46', align: 'center', weight: 'bold' },
+                  { type: 'text', text: `${calories}`, size: 'sm', color: '#047857', align: 'center', weight: 'bold' },
+                ],
+              },
+              {
+                type: 'box',
+                layout: 'vertical',
+                flex: 1,
+                contents: [
+                  { type: 'text', text: 'PROTEIN', size: 'xxs', color: '#065F46', align: 'center', weight: 'bold' },
+                  { type: 'text', text: `${protein}g`, size: 'sm', color: '#047857', align: 'center', weight: 'bold' },
+                ],
+              },
+              {
+                type: 'box',
+                layout: 'vertical',
+                flex: 1,
+                contents: [
+                  { type: 'text', text: 'EST. COST', size: 'xxs', color: '#065F46', align: 'center', weight: 'bold' },
+                  { type: 'text', text: `~${costThb}฿`, size: 'sm', color: '#047857', align: 'center', weight: 'bold' },
+                ],
+              },
+            ],
           },
+          // Uses From Fridge
           {
             type: 'box',
             layout: 'baseline',
             spacing: 'sm',
             contents: [
-              { type: 'text', text: '⏱️ Time:', size: 'xs', color: '#888888', flex: 2 },
-              { type: 'text', text: time, size: 'xs', color: '#333333', flex: 5, wrap: true },
+              { type: 'text', text: '🥬 Uses:', size: 'xs', color: '#059669', weight: 'bold', flex: 2 },
+              { type: 'text', text: usedList, size: 'xs', color: '#1F2937', flex: 5, wrap: true },
             ],
           },
+          // Missing Items
           {
             type: 'box',
             layout: 'baseline',
@@ -881,6 +841,7 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
               { type: 'text', text: hasMissing ? `${missing.length} items (${missing.join(', ')})` : missing[0], size: 'xs', color: hasMissing ? '#DC2626' : '#059669', flex: 5, wrap: true },
             ],
           },
+          // Native B2B Sponsor Banner
           {
             type: 'box',
             layout: 'vertical',
@@ -1173,7 +1134,7 @@ function buildShoppingListCard(title, items, allIngredients = []) {
   };
 }
 
-// --- Gemini AI Generators (Auto-Matches Burmese / Thai / English Output + Exact PhotoKey Selection) ---
+// --- Gemini AI Generators (Auto-Matches Burmese / Thai / English Output) ---
 async function generateRecipesForSession(session, filterStyle = null) {
   const styleInstructions = {
     budget_60: 'Focus strictly on STUDENT BUDGET-FRIENDLY meals costing UNDER 60 THB per serving using affordable local Thai ingredients.',
@@ -1186,19 +1147,11 @@ async function generateRecipesForSession(session, filterStyle = null) {
   const schemaPrompt = `${extraRule}
 LANGUAGE RULE (CRITICAL):
 - Detect the language of the user's input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English).
-- Write "title", "time", "allIngredients", "missingItems", and "steps" in THAT EXACT SAME LANGUAGE (e.g., if the user writes or speaks in Burmese, write natural Burmese; if in Thai, write natural Thai; if in English or an image without text, write in English).
-- ALWAYS keep "photoKey", "canonicalDish", and "mainIngredient" in ENGLISH.
-
-PHOTO KEY RULE (CRITICAL):
-- Choose the SINGLE BEST matching "photoKey" from this exact list (use a DIFFERENT photoKey for each of the 3 recipes):
-  beef_stew, beef_short_rib, beef_soup, beef_stir_fry, beef_steak, beef_curry,
-  thai_basil_chicken, teriyaki_chicken, chicken_curry, thai_green_curry, grilled_chicken, chicken_soup,
-  pork_stir_fry, pork_chop,
-  egg_shakshuka, egg_omelette, egg_fried_rice, tofu_veggie,
-  spaghetti_bolognese, creamy_pasta, pad_thai_noodles,
-  salmon_dish, shrimp_seafood
+- Write "title", "cuisineTag", "time", "usedIngredients", "allIngredients", "missingItems", and "steps" in THAT EXACT SAME LANGUAGE (e.g., if the user writes or speaks in Burmese, write natural Burmese; if in Thai, write natural Thai; if in English or an image without text, write in English).
+- ALWAYS keep "mainIngredient" in lowercase ENGLISH.
 
 IMPORTANT INGREDIENT RULE:
+- List the 2–4 key ingredients from the user's fridge/photo that this dish uses inside "usedIngredients".
 - Compare EVERY ingredient required to cook the dish (including cooking oil, sauces, seasonings, sugar, salt, aromatics, vegetables, and rice/noodles) against ONLY what the user explicitly provided.
 - Put EVERY SINGLE ingredient the user did NOT mention or show in the photo inside "missingItems" with exact quantities (do NOT cap at 1 or 2 items—list ALL 3, 4, 5+ missing items honestly!).
 - Also list every ingredient used in the recipe inside "allIngredients".
@@ -1209,9 +1162,9 @@ Return ONLY valid JSON (no markdown) matching this exact format:
     {
       "title": "Dish Name in user's language",
       "emoji": "🍗",
-      "photoKey": "one exact key from the list above (e.g. beef_short_rib, beef_soup, egg_omelette)",
-      "canonicalDish": "ENGLISH dish name",
-      "mainIngredient": "single primary ingredient in lowercase ENGLISH",
+      "cuisineTag": "2-word style label in user's language (e.g. THAI STIR-FRY, HEARTY STEW, QUICK BOWL)",
+      "mainIngredient": "single primary ingredient in lowercase ENGLISH (e.g., chicken, egg, pork, shrimp, beef, salmon, tofu, pasta)",
+      "usedIngredients": ["200g chicken breast", "2 cloves garlic"],
       "calories": 520,
       "protein": 44,
       "costThb": 48,
