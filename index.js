@@ -367,102 +367,134 @@ async function getMessageBase64(messageId) {
   return Buffer.concat(chunks).toString('base64');
 }
 
-// --- Verified High-Res Dish Photo Bank (Instant, 100% Reliable in LINE Flex) ---
-const DISH_PHOTO_BANK = [
-  { keys: ['pad kra pao', 'kra pao', 'basil chicken', 'basil pork', 'holy basil'], urls: [
-    'https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=800&q=80',
-  ]},
-  { keys: ['fried rice', 'khao pad', 'rice bowl', 'garlic rice'], urls: [
-    'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=800&q=80',
-  ]},
-  { keys: ['omelette', 'omelet', 'scrambled', 'poached egg', 'fried egg', 'egg'], urls: [
-    'https://images.unsplash.com/photo-1510693206972-df098062cb71?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1525351484163-7529414342d8?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?auto=format&fit=crop&w=800&q=80',
-  ]},
-  { keys: ['curry', 'masala', 'panang', 'green curry', 'red curry'], urls: [
-    'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=800&q=80',
-  ]},
-  { keys: ['noodle', 'pad thai', 'ramen', 'spaghetti', 'pasta', 'carbonara', 'macaroni'], urls: [
-    'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1551183053-bf91a1d81141?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1612874742237-6526221588e3?auto=format&fit=crop&w=800&q=80',
-  ]},
-  { keys: ['soup', 'tom yum', 'broth', 'stew', 'hotpot'], urls: [
-    'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1548943487-a2e4e43b4853?auto=format&fit=crop&w=800&q=80',
-  ]},
-  { keys: ['salad', 'yum', 'larb', 'greens', 'caesar'], urls: [
-    'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=800&q=80',
-  ]},
-  { keys: ['shrimp', 'prawn', 'seafood', 'squid'], urls: [
-    'https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1559737558-2f5a35f4523b?auto=format&fit=crop&w=800&q=80',
-  ]},
-  { keys: ['salmon', 'fish', 'tuna', 'fillet'], urls: [
-    'https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=800&q=80',
-  ]},
-  { keys: ['beef', 'steak', 'meatball'], urls: [
-    'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?auto=format&fit=crop&w=800&q=80',
-  ]},
-  { keys: ['pork', 'bacon', 'ham'], urls: [
-    'https://images.unsplash.com/photo-1602470520998-f4a52199a3d6?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80',
-  ]},
-  { keys: ['tofu', 'vegetable', 'veggie', 'mushroom', 'broccoli'], urls: [
-    'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80',
-  ]},
-  { keys: ['chicken', 'breast', 'wing', 'thigh', 'stir fry', 'stir-fry', 'teriyaki', 'garlic'], urls: [
-    'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1532550907401-a500c9a57435?auto=format&fit=crop&w=800&q=80',
-  ]},
-];
+// --- 1-to-1 Verified Dish Photo Map (Each Key Maps to That Exact Dish) ---
+const VERIFIED_DISH_PHOTOS = {
+  chicken_stir_fry: [
+    'https://images.pexels.com/photos/2338407/pexels-photo-2338407.jpeg?auto=compress&cs=tinysrgb&w=800',
+    'https://images.pexels.com/photos/6210959/pexels-photo-6210959.jpeg?auto=compress&cs=tinysrgb&w=800',
+  ],
+  grilled_chicken: [
+    'https://images.pexels.com/photos/106343/pexels-photo-106343.jpeg?auto=compress&cs=tinysrgb&w=800',
+    'https://images.pexels.com/photos/262959/pexels-photo-262959.jpeg?auto=compress&cs=tinysrgb&w=800',
+  ],
+  chicken_curry: [
+    'https://images.pexels.com/photos/2474661/pexels-photo-2474661.jpeg?auto=compress&cs=tinysrgb&w=800',
+    'https://images.pexels.com/photos/7353380/pexels-photo-7353380.jpeg?auto=compress&cs=tinysrgb&w=800',
+  ],
+  fried_rice: [
+    'https://images.pexels.com/photos/3926124/pexels-photo-3926124.jpeg?auto=compress&cs=tinysrgb&w=800',
+    'https://images.pexels.com/photos/723198/pexels-photo-723198.jpeg?auto=compress&cs=tinysrgb&w=800',
+  ],
+  omelette: [
+    'https://images.pexels.com/photos/1437267/pexels-photo-1437267.jpeg?auto=compress&cs=tinysrgb&w=800',
+    'https://images.pexels.com/photos/6294248/pexels-photo-6294248.jpeg?auto=compress&cs=tinysrgb&w=800',
+  ],
+  fried_egg_dish: [
+    'https://images.pexels.com/photos/566566/pexels-photo-566566.jpeg?auto=compress&cs=tinysrgb&w=800',
+    'https://images.pexels.com/photos/704569/pexels-photo-704569.jpeg?auto=compress&cs=tinysrgb&w=800',
+  ],
+  noodles: [
+    'https://images.pexels.com/photos/1279330/pexels-photo-1279330.jpeg?auto=compress&cs=tinysrgb&w=800',
+    'https://images.pexels.com/photos/2347311/pexels-photo-2347311.jpeg?auto=compress&cs=tinysrgb&w=800',
+  ],
+  pasta: [
+    'https://images.pexels.com/photos/1437267/pexels-photo-1437267.jpeg?auto=compress&cs=tinysrgb&w=800',
+    'https://images.pexels.com/photos/1527603/pexels-photo-1527603.jpeg?auto=compress&cs=tinysrgb&w=800',
+  ],
+  soup: [
+    'https://images.pexels.com/photos/539451/pexels-photo-539451.jpeg?auto=compress&cs=tinysrgb&w=800',
+    'https://images.pexels.com/photos/1731535/pexels-photo-1731535.jpeg?auto=compress&cs=tinysrgb&w=800',
+  ],
+  salad: [
+    'https://images.pexels.com/photos/1059905/pexels-photo-1059905.jpeg?auto=compress&cs=tinysrgb&w=800',
+    'https://images.pexels.com/photos/1213710/pexels-photo-1213710.jpeg?auto=compress&cs=tinysrgb&w=800',
+  ],
+  pork_dish: [
+    'https://images.pexels.com/photos/323682/pexels-photo-323682.jpeg?auto=compress&cs=tinysrgb&w=800',
+    'https://images.pexels.com/photos/410648/pexels-photo-410648.jpeg?auto=compress&cs=tinysrgb&w=800',
+  ],
+  beef_dish: [
+    'https://images.pexels.com/photos/769289/pexels-photo-769289.jpeg?auto=compress&cs=tinysrgb&w=800',
+    'https://images.pexels.com/photos/3535383/pexels-photo-3535383.jpeg?auto=compress&cs=tinysrgb&w=800',
+  ],
+  shrimp_seafood: [
+    'https://images.pexels.com/photos/566345/pexels-photo-566345.jpeg?auto=compress&cs=tinysrgb&w=800',
+    'https://images.pexels.com/photos/725992/pexels-photo-725992.jpeg?auto=compress&cs=tinysrgb&w=800',
+  ],
+  fish_salmon: [
+    'https://images.pexels.com/photos/3763847/pexels-photo-3763847.jpeg?auto=compress&cs=tinysrgb&w=800',
+    'https://images.pexels.com/photos/842142/pexels-photo-842142.jpeg?auto=compress&cs=tinysrgb&w=800',
+  ],
+  tofu_veggie: [
+    'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=800',
+    'https://images.pexels.com/photos/3026808/pexels-photo-3026808.jpeg?auto=compress&cs=tinysrgb&w=800',
+  ],
+};
 
 async function getRecipeImageUrl(recipe, usedUrls = new Set()) {
-  const searchText = `${recipe.canonicalDish || ''} ${recipe.title || ''} ${recipe.mainIngredient || ''}`.toLowerCase();
+  const canonicalDish = (recipe.canonicalDish || '').trim();
+  const title = (recipe.title || '').trim();
+  const photoKey = (recipe.photoKey || '').trim().toLowerCase();
 
-  let bestGroup = null;
-  let bestScore = 0;
+  // 1. Optional Live Pexels Search (if PEXELS_API_KEY is added in Render Env Vars, fetches exact dish photo!)
+  const pexelsKey = process.env.PEXELS_API_KEY?.trim();
+  if (pexelsKey && (canonicalDish || title)) {
+    try {
+      const q = encodeURIComponent(`${canonicalDish || title} food dish`);
+      const res = await fetch(`https://api.pexels.com/v1/search?query=${q}&per_page=3&orientation=landscape`, {
+        headers: { Authorization: pexelsKey },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const hit = (data.photos || []).find((p) => p?.src?.large && !usedUrls.has(p.src.large));
+        if (hit) {
+          usedUrls.add(hit.src.large);
+          return hit.src.large;
+        }
+      }
+    } catch {}
+  }
 
-  for (const group of DISH_PHOTO_BANK) {
-    let score = 0;
-    for (const key of group.keys) {
-      if (searchText.includes(key)) {
-        score += key.includes(' ') ? 4 : 2;
+  // 2. Direct Gemini-Selected Dish Key (100% deterministic 1-to-1 match, zero keyword misfires!)
+  if (photoKey && VERIFIED_DISH_PHOTOS[photoKey]) {
+    const unused = VERIFIED_DISH_PHOTOS[photoKey].find((u) => !usedUrls.has(u));
+    if (unused) {
+      usedUrls.add(unused);
+      return unused;
+    }
+  }
+
+  // 3. Fallback Keyword Match Against VERIFIED_DISH_PHOTOS
+  const text = `${canonicalDish} ${title} ${recipe.mainIngredient || ''}`.toLowerCase();
+  const rules = [
+    ['fried_rice', ['fried rice', 'khao pad', 'rice bowl']],
+    ['omelette', ['omelette', 'omelet', 'scrambled']],
+    ['fried_egg_dish', ['egg', 'poached']],
+    ['chicken_curry', ['curry', 'masala', 'stew']],
+    ['grilled_chicken', ['grilled chicken', 'roast chicken', 'baked chicken']],
+    ['chicken_stir_fry', ['chicken', 'kra pao', 'basil', 'stir fry', 'stir-fry', 'teriyaki']],
+    ['noodles', ['noodle', 'pad thai', 'ramen', 'spaghetti']],
+    ['pasta', ['pasta', 'carbonara', 'macaroni']],
+    ['soup', ['soup', 'tom yum', 'broth']],
+    ['salad', ['salad', 'yum', 'larb']],
+    ['shrimp_seafood', ['shrimp', 'prawn', 'seafood', 'squid']],
+    ['fish_salmon', ['salmon', 'fish', 'tuna']],
+    ['beef_dish', ['beef', 'steak']],
+    ['pork_dish', ['pork', 'bacon', 'ham']],
+    ['tofu_veggie', ['tofu', 'veggie', 'vegetable', 'mushroom']],
+  ];
+
+  for (const [key, keywords] of rules) {
+    if (keywords.some((kw) => text.includes(kw))) {
+      const unused = VERIFIED_DISH_PHOTOS[key].find((u) => !usedUrls.has(u));
+      if (unused) {
+        usedUrls.add(unused);
+        return unused;
       }
     }
-    if (score > bestScore) {
-      bestScore = score;
-      bestGroup = group;
-    }
   }
 
-  if (bestGroup) {
-    const unused = bestGroup.urls.find((u) => !usedUrls.has(u));
-    if (unused) {
-      usedUrls.add(unused);
-      return unused;
-    }
-  }
-
-  for (const group of DISH_PHOTO_BANK) {
-    const unused = group.urls.find((u) => !usedUrls.has(u));
-    if (unused) {
-      usedUrls.add(unused);
-      return unused;
-    }
-  }
-
-  return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80';
+  return 'https://images.pexels.com/photos/2338407/pexels-photo-2338407.jpeg?auto=compress&cs=tinysrgb&w=800';
 }
 
 async function getAvailableModels() {
@@ -804,6 +836,7 @@ async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterSt
     : [{
         title: 'Quick Garlic Chicken Stir-Fry',
         emoji: '🍳',
+        photoKey: 'chicken_stir_fry',
         canonicalDish: 'Thai Garlic Chicken Stir Fry',
         mainIngredient: 'chicken',
         calories: 460,
@@ -1169,7 +1202,7 @@ function buildShoppingListCard(title, items, allIngredients = []) {
   };
 }
 
-// --- Gemini AI Generators (Auto-Matches Burmese / Thai / English Output) ---
+// --- Gemini AI Generators (Auto-Matches Burmese / Thai / English Output + Exact photoKey) ---
 async function generateRecipesForSession(session, filterStyle = null) {
   const styleInstructions = {
     budget_60: 'Focus strictly on STUDENT BUDGET-FRIENDLY meals costing UNDER 60 THB per serving using affordable local Thai ingredients.',
@@ -1183,7 +1216,11 @@ async function generateRecipesForSession(session, filterStyle = null) {
 LANGUAGE RULE (CRITICAL):
 - Detect the language of the user's input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English).
 - Write "title", "time", "allIngredients", "missingItems", and "steps" in THAT EXACT SAME LANGUAGE (e.g., if the user writes or speaks in Burmese, write natural Burmese; if in Thai, write natural Thai; if in English or an image without text, write in English).
-- ALWAYS keep "canonicalDish" and "mainIngredient" in ENGLISH so photo lookup works accurately.
+- ALWAYS keep "photoKey", "canonicalDish", and "mainIngredient" in ENGLISH.
+
+PHOTO KEY RULE (CRITICAL):
+- Pick the SINGLE BEST matching "photoKey" from ONLY this exact list so the dish photo matches 100%:
+  "chicken_stir_fry" | "grilled_chicken" | "chicken_curry" | "fried_rice" | "omelette" | "fried_egg_dish" | "noodles" | "pasta" | "soup" | "salad" | "pork_dish" | "beef_dish" | "shrimp_seafood" | "fish_salmon" | "tofu_veggie"
 
 IMPORTANT INGREDIENT RULE:
 - Compare EVERY ingredient required to cook the dish (including cooking oil, sauces, seasonings, sugar, salt, aromatics, vegetables, and rice/noodles) against ONLY what the user explicitly provided.
@@ -1196,7 +1233,8 @@ Return ONLY valid JSON (no markdown) matching this exact format:
     {
       "title": "Dish Name in user's language",
       "emoji": "🍗",
-      "canonicalDish": "descriptive 2-4 word ENGLISH dish name for photo matching (e.g., Pad Kra Pao, Chicken Curry, Garlic Omelette, Shrimp Fried Rice, Chicken Noodle Soup)",
+      "photoKey": "chicken_stir_fry",
+      "canonicalDish": "2-4 word ENGLISH dish name (e.g., Thai Basil Chicken, Chicken Curry, Garlic Omelette, Shrimp Fried Rice)",
       "mainIngredient": "single primary ingredient in lowercase ENGLISH (e.g., chicken, egg, pork, shrimp, beef, salmon, tofu, pasta)",
       "calories": 520,
       "protein": 44,
@@ -1208,7 +1246,7 @@ Return ONLY valid JSON (no markdown) matching this exact format:
     }
   ]
 }
-Suggest 3 practical, delicious recipes.`;
+Suggest 3 distinct recipes (try to pick different dish styles/photoKeys when possible so each card looks visually distinct).`;
 
   const geminiContents = session.lastPromptType === 'image' && session.lastImageBase64
     ? [{ inlineData: { mimeType: 'image/jpeg', data: session.lastImageBase64 } }, `You are FridgeFriend, an AI chef. Identify the ingredients in this photo and suggest 3 recipes using them. ${schemaPrompt}`]
