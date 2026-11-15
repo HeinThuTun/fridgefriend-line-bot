@@ -231,7 +231,7 @@ function recordPantryTrends(rawIngredientsText = '', missingItemsList = []) {
     for (const raw of missingItemsList) {
       if (!raw || raw.startsWith('None')) continue;
       const clean = raw
-        .replace(/^[\d./]+\s*(?:tbsp|tsp|cup|cups|g|kg|ml|l|pcs|cloves|bunch|bottle)?\s*/i, '')
+        .replace(/^[\d./]+\s*(?:tbsp|tsp|cup|cups|g|kg|ml|l|pcs|cloves|bunch)?\s*/i, '')
         .trim()
         .toLowerCase();
       if (clean.length >= 2) {
@@ -749,7 +749,7 @@ function buildReceiptCard(items, batchId) {
     type: 'flex', altText: '🧾 Receipt Scanned',
     contents: {
       type: 'bubble',
-      body: { type: 'box', layout: 'vertical', spacing: 'sm', contents: [{ type: 'text', text: '🧾 Grocery Receipt Scanned', weight: 'bold', size: 'lg', color: '#10B981' }, { type: 'text', text: `Found ${items.length} items:`, size: 'xs', color: '#6B7280' }, { type: 'separator' }, ...items.map(i => ({ type: 'text', text: `• ${i}`, size: 'sm', color: '#333333', wrap: true }))] },
+      body: { type: 'box', layout: 'vertical', spacing: 'sm', contents: [{ type: 'text', text: '🧾 Grocery Receipt Scanned', weight: 'bold', size: 'lg', color: '#10B981' }, { type: 'text', text: `Found ${items.length} items:`, size: 'xs', color: '#6B7280' }, { type: 'separator' }, ...items.map(i => ({ type: 'text', text: `• ${i}`, size: 'sm', color: '#333333', wrap: true }))]} ,
       footer: { type: 'box', layout: 'vertical', contents: [{ type: 'button', style: 'primary', color: '#10B981', height: 'sm', action: { type: 'postback', label: '🍳 Cook With These', data: `action=receipt_cook&batch=${batchId}`, displayText: 'Cook with receipt items' } }] },
     },
   };
