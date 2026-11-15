@@ -20,6 +20,7 @@ const DB_FILE = path.join(__dirname, 'db.json');
 const recipeStore = new Map();
 const mealPlanStore = new Map();
 const pendingReceiptItems = new Map();
+const pendingPantryItems = new Map(); // Added for pantry verification
 let cachedModels = null;
 
 // Clean up expired cache every 30 minutes (keeps RAM flat for 70+ users)
@@ -36,6 +37,10 @@ setInterval(() => {
   for (const key of pendingReceiptItems.keys()) {
     const ts = Number(key);
     if (ts && ts < cutoff) pendingReceiptItems.delete(key);
+  }
+  for (const key of pendingPantryItems.keys()) {
+    const ts = Number(key);
+    if (ts && ts < cutoff) pendingPantryItems.delete(key);
   }
 }, 30 * 60 * 1000).unref();
 
@@ -60,6 +65,12 @@ const UI_STRINGS = {
     protein: 'Protein',
     calories: 'Calories',
     mealsLogged: '🍽️ Meals Logged Today:',
+    verifyTitle: '🔍 Verify Scanned Ingredients',
+    verifySubtitle: 'We detected these items in your photo. Are they correct?',
+    confirmBtn: '✅ Correct & Find Recipes',
+    editBtn: '✏️ Edit Ingredients',
+    editPrompt: '✍️ Please type your corrected list of ingredients (e.g., chicken breast, garlic, tomato):',
+    confirmedHeader: '🍳 Finding delicious recipes for your items...',
   },
   th: {
     bestMatch: '🏆 แนะนำที่สุด',
@@ -80,6 +91,12 @@ const UI_STRINGS = {
     protein: 'โปรตีน',
     calories: 'แคลอรี่',
     mealsLogged: '🍽️ เมนูที่ทำวันนี้:',
+    verifyTitle: '🔍 ตรวจสอบวัตถุดิบที่สแกน',
+    verifySubtitle: 'ระบบตรวจพบวัตถุดิบเหล่านี้จากรูปภาพ ถูกต้องไหม?',
+    confirmBtn: '✅ ถูกต้อง & ค้นหาเมนู',
+    editBtn: '✏️ แก้ไขวัตถุดิบ',
+    editPrompt: '✍️ กรุณาพิมพ์รายการวัตถุดิบที่ถูกต้องของคุณ (เช่น อกไก่, กระเทียม, มะเขือเทศ):',
+    confirmedHeader: '🍳 กำลังค้นหาเมนูอร่อยจากวัตถุดิบของคุณ...',
   },
   my: {
     bestMatch: '🏆 အသင့်တော်ဆုံး',
@@ -100,6 +117,12 @@ const UI_STRINGS = {
     protein: 'ပရိုတင်း',
     calories: 'ကယ်လိုရီ',
     mealsLogged: '🍽️ ယနေ့ ချက်ပြုတ်ခဲ့သည့် ဟင်းပွဲများ:',
+    verifyTitle: '🔍 စစ်ဆေးရန် ပါဝင်ပစ္စည်းများ',
+    verifySubtitle: 'သင့်ပုံထဲတွင် ဤပစ္စည်းများကို တွေ့ရှိရပါသည်။ မှန်ကန်ပါသလား?',
+    confirmBtn: '✅ မှန်ကန်သည် & ဟင်းပွဲရှာမည်',
+    editBtn: '✏️ ပြင်ဆင်မည်',
+    editPrompt: '✍️ မှန်ကန်သော ပါဝင်ပစ္စည်းများကို ပြန်လည်ရိုက်ထည့်ပေးပါ (ဥပမာ - ကြက်သား၊ ကြက်သွန်ဖြူ):',
+    confirmedHeader: '🍳 ဟင်းချက်နည်းများကို ရှာဖွေနေပါပြီ...',
   },
 };
 
@@ -165,6 +188,7 @@ function getSession(userId) {
   if (!db.users[userId]) {
     db.users[userId] = {
       lang: 'auto', // 'auto' | 'en' | 'th' | 'my'
+      waitingForPantryEdit: false, // Added for edit state
       lastPromptType: null,
       lastText: '',
       lastImageBase64: null,
@@ -177,6 +201,7 @@ function getSession(userId) {
   }
   const user = db.users[userId];
   if (!user.lang) user.lang = 'auto';
+  if (user.waitingForPantryEdit === undefined) user.waitingForPantryEdit = false;
   if (!user.goals) user.goals = { calories: 2000, protein: 130, label: 'Balanced (2000 kcal)' };
   if (!Array.isArray(user.saved)) user.saved = [];
   const today = getTodayKey();
@@ -558,6 +583,70 @@ function getFilterQuickReplies(session) {
       { type: 'action', action: { type: 'postback', label: '🌶️ Thai Style', data: 'action=filter&style=thai_style', displayText: '🌶️ Thai Style options' } },
       { type: 'action', action: { type: 'message', label: '💼 B2B Revenue', text: 'revenue' } },
     ],
+  };
+}
+
+// --- Pantry Verification Card Builder ---
+function buildPantryVerificationCard(items, batchId, session) {
+  const itemRows = items.map((item) => ({
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'sm',
+    margin: 'xs',
+    contents: [
+      { type: 'text', text: '🥬', size: 'sm', flex: 0 },
+      { type: 'text', text: item, size: 'sm', color: '#1F2937', weight: 'bold', wrap: true, flex: 1 },
+    ],
+  }));
+
+  return {
+    type: 'flex',
+    altText: '🔍 Verify Scanned Ingredients',
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#ECFDF5',
+        paddingAll: 'md',
+        contents: [
+          { type: 'text', text: t(session, 'verifyTitle'), color: '#059669', size: 'xs', weight: 'bold' },
+          { type: 'text', text: t(session, 'verifySubtitle'), color: '#064E3B', size: 'sm', weight: 'bold', wrap: true },
+        ],
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        paddingAll: 'lg',
+        contents: [
+          { type: 'text', text: `Detected ${items.length} ingredient(s):`, size: 'xs', color: '#6B7280' },
+          { type: 'separator', margin: 'sm' },
+          ...itemRows,
+        ],
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        paddingAll: 'md',
+        contents: [
+          {
+            type: 'button',
+            style: 'primary',
+            color: '#10B981',
+            height: 'sm',
+            action: { type: 'postback', label: t(session, 'confirmBtn'), data: `action=pantry_confirm&batch=${batchId}`, displayText: 'Confirm ingredients and find recipes 🍳' },
+          },
+          {
+            type: 'button',
+            style: 'secondary',
+            height: 'sm',
+            action: { type: 'postback', label: t(session, 'editBtn'), data: `action=pantry_edit&batch=${batchId}`, displayText: 'I want to edit my ingredients ✏️' },
+          },
+        ],
+      },
+    },
   };
 }
 
@@ -1476,6 +1565,29 @@ async function handleEvent(event) {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: confirmMap[lang] }] });
     }
 
+    // Pantry Verification Confirm Action
+    if (action === 'pantry_confirm') {
+      const batchId = params.get('batch');
+      const items = pendingPantryItems.get(batchId) || [];
+      session.lastPromptType = 'text';
+      session.lastText = items.join(', ');
+      session.waitingForPantryEdit = false;
+      recordPantryTrends(session.lastText, []);
+      if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
+      const carousel = await generateRecipesForSession(session);
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: t(session, 'confirmedHeader') }, carousel] });
+    }
+
+    // Pantry Verification Edit Action
+    if (action === 'pantry_edit') {
+      session.waitingForPantryEdit = true;
+      saveDB();
+      return messagingClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{ type: 'text', text: t(session, 'editPrompt') }],
+      });
+    }
+
     if (action === 'sponsor_click') {
       const recipe = recipeStore.get(params.get('id'));
       const sponsor = recipe?.sponsor || getContextualSponsor();
@@ -1567,17 +1679,6 @@ async function handleEvent(event) {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `✅ Updated daily target to ${cal} kcal & ${pro}g protein!` }, buildStatsCard(session)] });
     }
 
-    if (action === 'receipt_cook') {
-      const items = pendingReceiptItems.get(params.get('batch')) || [];
-      if (items.length === 0) return null;
-      session.lastPromptType = 'text';
-      session.lastText = items.join(', ');
-      recordPantryTrends(session.lastText, []);
-      if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-      const carousel = await generateRecipesForSession(session);
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `🍳 Cooking with your ${items.length} scanned receipt items:` }, carousel] });
-    }
-
     if (action === 'meal_plan') {
       if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
       const planCarousel = await generateMealPlanForSession(session);
@@ -1611,7 +1712,23 @@ async function handleEvent(event) {
     if (lower === 'english' || lower === 'en') {
       session.lang = 'en';
       saveDB();
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ Language switched to English!' }] });
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ Language set to English!' }] });
+    }
+
+    // Handle user typing corrected ingredients after clicking Edit
+    if (session.waitingForPantryEdit) {
+      session.waitingForPantryEdit = false;
+      session.lastPromptType = 'text';
+      session.lastText = rawText;
+      session.lastImageBase64 = null;
+      recordPantryTrends(rawText, []);
+      saveDB();
+      if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
+      const carousel = await generateRecipesForSession(session);
+      return messagingClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{ type: 'text', text: `✅ Updated ingredients: "${rawText}"` }, carousel],
+      });
     }
 
     if (lower === 'help' || lower === 'menu' || lower === 'hi' || lower === 'hello' || lower === 'สวัสดี' || lower === 'မင်္ဂလာပါ') {
@@ -1671,7 +1788,7 @@ async function handleEvent(event) {
     const classifyRes = await generateWithFallback(
       [
         { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
-        `Analyze this image. Is it a shopping/grocery RECEIPT, or a photo of FOOD/FRIDGE ingredients? Return ONLY valid JSON: { "type": "receipt" or "food", "receiptFoodItems": ["item 1", "item 2"] }`,
+        `Analyze this image. Is it a shopping/grocery RECEIPT, or a photo of FOOD/FRIDGE ingredients? Return ONLY valid JSON: { "type": "receipt" or "food", "receiptFoodItems": ["item 1", "item 2"], "fridgeIngredients": ["chicken breast", "garlic", "tomato"] }`,
       ],
       { responseMimeType: 'application/json' }
     );
@@ -1684,13 +1801,20 @@ async function handleEvent(event) {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildReceiptCard(parsedClass.receiptFoodItems, batchId)] });
     }
 
-    session.lastPromptType = 'image';
+    const detectedIngredients = Array.isArray(parsedClass.fridgeIngredients) && parsedClass.fridgeIngredients.length > 0
+      ? parsedClass.fridgeIngredients
+      : ['chicken breast', 'garlic', 'eggs', 'rice'];
+
+    const batchId = `${Date.now()}`;
+    pendingPantryItems.set(batchId, detectedIngredients);
     session.lastImageBase64 = base64Image;
-    session.lastText = '';
+    session.lastPromptType = 'image';
     saveDB();
 
-    const carousel = await generateRecipesForSession(session);
-    return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
+    return messagingClient.replyMessage({
+      replyToken: event.replyToken,
+      messages: [buildPantryVerificationCard(detectedIngredients, batchId, session)],
+    });
   }
 
   if (event.message.type === 'audio') {
