@@ -20,7 +20,6 @@ const DB_FILE = path.join(__dirname, 'db.json');
 const recipeStore = new Map();
 const mealPlanStore = new Map();
 const pendingReceiptItems = new Map();
-const pendingPantryItems = new Map();
 let cachedModels = null;
 
 // Clean up expired cache every 30 minutes (keeps RAM flat for 70+ users)
@@ -37,10 +36,6 @@ setInterval(() => {
   for (const key of pendingReceiptItems.keys()) {
     const ts = Number(key);
     if (ts && ts < cutoff) pendingReceiptItems.delete(key);
-  }
-  for (const key of pendingPantryItems.keys()) {
-    const ts = Number(key);
-    if (ts && ts < cutoff) pendingPantryItems.delete(key);
   }
 }, 30 * 60 * 1000).unref();
 
@@ -65,12 +60,6 @@ const UI_STRINGS = {
     protein: 'Protein',
     calories: 'Calories',
     mealsLogged: '🍽️ Meals Logged Today:',
-    verifyTitle: '🔍 Verify Scanned Ingredients',
-    verifySubtitle: 'We detected these items in your photo. Are they correct?',
-    confirmBtn: '✅ Confirm & Find Recipes',
-    editBtn: '✏️ Edit Ingredients',
-    editPrompt: '✍️ Please type your corrected list of ingredients (e.g., chicken breast, garlic, tomato):',
-    confirmedHeader: '🍳 Finding delicious recipes for your items...',
   },
   th: {
     bestMatch: '🏆 แนะนำที่สุด',
@@ -91,12 +80,6 @@ const UI_STRINGS = {
     protein: 'โปรตีน',
     calories: 'แคลอรี่',
     mealsLogged: '🍽️ เมนูที่ทำวันนี้:',
-    verifyTitle: '🔍 ตรวจสอบวัตถุดิบที่สแกน',
-    verifySubtitle: 'ระบบตรวจพบวัตถุดิบเหล่านี้จากรูปภาพ ถูกต้องไหม?',
-    confirmBtn: '✅ ยืนยัน & ค้นหาเมนู',
-    editBtn: '✏️ แก้ไขวัตถุดิบ',
-    editPrompt: '✍️ กรุณาพิมพ์รายการวัตถุดิบที่ถูกต้องของคุณ (เช่น อกไก่, กระเทียม, มะเขือเทศ):',
-    confirmedHeader: '🍳 กำลังค้นหาเมนูอร่อยจากวัตถุดิบของคุณ...',
   },
   my: {
     bestMatch: '🏆 အသင့်တော်ဆုံး',
@@ -117,12 +100,6 @@ const UI_STRINGS = {
     protein: 'ပရိုတင်း',
     calories: 'ကယ်လိုရီ',
     mealsLogged: '🍽️ ယနေ့ ချက်ပြုတ်ခဲ့သည့် ဟင်းပွဲများ:',
-    verifyTitle: '🔍 စစ်ဆေးရန် ပါဝင်ပစ္စည်းများ',
-    verifySubtitle: 'သင့်ပုံထဲတွင် ဤပစ္စည်းများကို တွေ့ရှိရပါသည်။ မှန်ကန်ပါသလား?',
-    confirmBtn: '✅ အတည်ပြုပြီး ဟင်းပွဲရှာမည်',
-    editBtn: '✏️ ပြင်ဆင်မည်',
-    editPrompt: '✍️ မှန်ကန်သော ပါဝင်ပစ္စည်းများကို ပြန်လည်ရိုက်ထည့်ပေးပါ (ဥပမာ - ကြက်သား၊ ကြက်သွန်ဖြူ):',
-    confirmedHeader: '🍳 ဟင်းချက်နည်းများကို ရှာဖွေနေပါပြီ...',
   },
 };
 
@@ -166,6 +143,7 @@ function loadDB() {
 
 const db = loadDB();
 
+// Non-blocking debounced disk writer (batches concurrent writes every 2s)
 let saveTimer = null;
 function saveDB() {
   if (saveTimer) return;
@@ -186,8 +164,7 @@ function getTodayKey() {
 function getSession(userId) {
   if (!db.users[userId]) {
     db.users[userId] = {
-      lang: 'auto',
-      waitingForPantryEdit: false,
+      lang: 'auto', // 'auto' | 'en' | 'th' | 'my'
       lastPromptType: null,
       lastText: '',
       lastImageBase64: null,
@@ -200,7 +177,6 @@ function getSession(userId) {
   }
   const user = db.users[userId];
   if (!user.lang) user.lang = 'auto';
-  if (user.waitingForPantryEdit === undefined) user.waitingForPantryEdit = false;
   if (!user.goals) user.goals = { calories: 2000, protein: 130, label: 'Balanced (2000 kcal)' };
   if (!Array.isArray(user.saved)) user.saved = [];
   const today = getTodayKey();
@@ -208,12 +184,14 @@ function getSession(userId) {
   return user;
 }
 
+// --- Stream 4: Verified B2B Partner Invite Codes ---
 const B2B_PARTNER_CODES = {
   FITFIRST26: { partner: 'Fitness First Thailand', calories: 2400, protein: 165 },
   JETTS2026: { partner: 'Jetts 24 Hour Fitness', calories: 2300, protein: 155 },
   TUGYM99: { partner: 'TU Rangsit Sports Complex', calories: 2200, protein: 150 },
 };
 
+// --- Stream 5 Helper: Record Anonymized FMCG Pantry & Missing Item Trends ---
 function recordPantryTrends(rawIngredientsText = '', missingItemsList = []) {
   if (rawIngredientsText) {
     const items = rawIngredientsText
@@ -228,7 +206,7 @@ function recordPantryTrends(rawIngredientsText = '', missingItemsList = []) {
     for (const raw of missingItemsList) {
       if (!raw || raw.startsWith('None')) continue;
       const clean = raw
-        .replace(/^[\d./]+\s*(?:tbsp|tsp|cup|cups|g|kg|ml|l|pcs|cloves|bunch)?\s*/i, '')
+        .replace(/^[\d./]+\s*(?:tbsp|tsp|cup|cups|g|kg|ml|l|pcs|cloves|bunch|bottle)?\s*/i, '')
         .trim()
         .toLowerCase();
       if (clean.length >= 2) {
@@ -239,16 +217,71 @@ function recordPantryTrends(rawIngredientsText = '', missingItemsList = []) {
   saveDB();
 }
 
+// --- Stream 2: Multi-Partner Contextual Ad Pool ---
 const PARTNER_AD_POOL = [
-  { tags: ['protein', 'chicken', 'egg', 'beef', 'pork', 'salmon', 'fitness'], sponsor: 'Meiji High Protein (7-Eleven)', tagline: 'Meiji High Protein Milk (+28g P)', promoCode: 'FFMEIJI10 (10 THB Off)', url: 'https://www.7eleven.co.th/' },
-  { tags: ['chicken', 'meat', 'budget', 'pork', 'fresh'], sponsor: 'CP FreshMart / Lotus’s Go Fresh', tagline: 'CP Fresh Chicken Packs — 25% Off', promoCode: 'FFCP25', url: 'https://www.lotuss.com/th' },
-  { tags: ['thai', 'basil', 'garlic', 'soy', 'stir', 'oyster'], sponsor: 'Healthy Boy Brand (เด็กสมบูรณ์)', tagline: 'Healthy Boy Oyster & Soy Combo', promoCode: 'FFTHAI15', url: 'https://shopee.co.th/' },
-  { tags: ['rice', 'noodle', 'quick', 'fry', 'spicy', 'chili'], sponsor: 'Maggi Thailand (แม็กกี้)', tagline: 'Maggi Cooking Sauce Pack (20฿ Off)', promoCode: 'FFMAGGI20', url: 'https://www.tops.co.th/' },
-  { tags: ['egg', 'omelette', 'tomato', 'fried', 'kid', 'quick'], sponsor: 'Roza Lycopene (โรซ่า)', tagline: 'Roza Zero-Sugar Tomato Sauce', promoCode: 'FFROZA10', url: 'https://www.tops.co.th/' },
-  { tags: ['salad', 'veggie', 'tofu', 'healthy', 'diet', 'low'], sponsor: 'Kewpie Thailand (คิวพี)', tagline: 'Kewpie Sesame Dressing (15% Off)', promoCode: 'FFKEWPIE15', url: 'https://www.lazada.co.th/' },
-  { tags: ['pasta', 'milk', 'cheese', 'butter', 'cream'], sponsor: 'Tops Online Express', tagline: 'Tops 1-Hr Dorm Delivery (50฿ Off)', promoCode: 'FFTOPS50', url: 'https://www.tops.co.th/en/' },
-  { tags: ['all', 'student', 'budget', 'grocery'], sponsor: 'GrabMart Student Saver', tagline: 'GrabMart Free Delivery Near Campus', promoCode: 'FFGRABFREE', url: 'https://food.grab.com/' },
-  { tags: ['bulk', 'meal', 'prep', 'plan', '3-day'], sponsor: 'Makro PRO (แม็คโคร โปร)', tagline: 'Makro PRO Bulk Chicken & Eggs', promoCode: 'FFMAKRO40', url: 'https://www.makro.pro/' },
+  {
+    tags: ['protein', 'chicken', 'egg', 'beef', 'pork', 'salmon', 'fitness'],
+    sponsor: 'Meiji High Protein (7-Eleven)',
+    tagline: 'Meiji High Protein Milk (+28g P)',
+    promoCode: 'FFMEIJI10 (10 THB Off at 7-Eleven)',
+    url: 'https://www.7eleven.co.th/',
+  },
+  {
+    tags: ['chicken', 'meat', 'budget', 'pork', 'fresh'],
+    sponsor: 'CP FreshMart / Lotus’s Go Fresh',
+    tagline: 'CP Fresh Chicken Packs — 25% Off',
+    promoCode: 'FFCP25 (Show Barcode at Checkout)',
+    url: 'https://www.lotuss.com/th',
+  },
+  {
+    tags: ['thai', 'basil', 'garlic', 'soy', 'stir', 'oyster'],
+    sponsor: 'Healthy Boy Brand (เด็กสมบูรณ์)',
+    tagline: 'Healthy Boy Oyster & Soy Combo',
+    promoCode: 'FFTHAI15 (15% Off on Shopee Mall)',
+    url: 'https://shopee.co.th/search?keyword=healthy%20boy%20oyster%20sauce',
+  },
+  {
+    tags: ['rice', 'noodle', 'quick', 'fry', 'spicy', 'chili'],
+    sponsor: 'Maggi Thailand (แม็กกี้)',
+    tagline: 'Maggi Cooking Sauce Pack (20฿ Off)',
+    promoCode: 'FFMAGGI20 (20 THB Off at Tops)',
+    url: 'https://www.tops.co.th/en/search/maggi',
+  },
+  {
+    tags: ['egg', 'omelette', 'tomato', 'fried', 'kid', 'quick'],
+    sponsor: 'Roza Lycopene (โรซ่า)',
+    tagline: 'Roza Zero-Sugar Tomato Sauce',
+    promoCode: 'FFROZA10 (Buy 1 Get 1 Mini Pack)',
+    url: 'https://www.tops.co.th/en/search/roza',
+  },
+  {
+    tags: ['salad', 'veggie', 'tofu', 'healthy', 'diet', 'low'],
+    sponsor: 'Kewpie Thailand (คิวพี)',
+    tagline: 'Kewpie Sesame Dressing (15% Off)',
+    promoCode: 'FFKEWPIE15 (15% Off on Lazada)',
+    url: 'https://www.lazada.co.th/catalog/?q=kewpie+sesame',
+  },
+  {
+    tags: ['pasta', 'milk', 'cheese', 'butter', 'cream'],
+    sponsor: 'Tops Online Express',
+    tagline: 'Tops 1-Hr Dorm Delivery (50฿ Off)',
+    promoCode: 'FFTOPS50 (50 THB Off First Order)',
+    url: 'https://www.tops.co.th/en/',
+  },
+  {
+    tags: ['all', 'student', 'budget', 'grocery'],
+    sponsor: 'GrabMart Student Saver',
+    tagline: 'GrabMart Free Delivery Near Campus',
+    promoCode: 'FFGRABFREE (Free Delivery Near Campus)',
+    url: 'https://food.grab.com/th/en/',
+  },
+  {
+    tags: ['bulk', 'meal', 'prep', 'plan', '3-day'],
+    sponsor: 'Makro PRO (แม็คโคร โปร)',
+    tagline: 'Makro PRO Bulk Chicken & Eggs',
+    promoCode: 'FFMAKRO40 (40 THB Off App Order)',
+    url: 'https://www.makro.pro/',
+  },
 ];
 
 function getContextualSponsor(contextText = '', filterStyle = '', usedSponsors = new Set()) {
@@ -267,11 +300,42 @@ function getContextualSponsor(contextText = '', filterStyle = '', usedSponsors =
   return chosen;
 }
 
-// --- Rich Menu PNG Generator (Compact 405px Height) ---
+// --- Pure Node.js PNG Generator for Rich Menu ---
 function createRichMenuPngBuffer() {
   const width = 2500;
-  const height = 405; // Compact height to prevent green box artifact
+  const height = 843;
   const tileColors = [[6, 95, 70], [4, 120, 87], [5, 150, 105], [16, 185, 129]];
+  const FONT = {
+    A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
+    B: ['11110', '10001', '10001', '11110', '10001', '10001', '11110'],
+    C: ['01111', '10000', '10000', '10000', '10000', '10000', '01111'],
+    D: ['11110', '10001', '10001', '10001', '10001', '10001', '11110'],
+    E: ['11111', '10000', '10000', '11110', '10000', '10000', '11111'],
+    F: ['11111', '10000', '10000', '11110', '10000', '10000', '10000'],
+    G: ['01111', '10000', '10000', '10111', '10001', '10001', '01111'],
+    I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111'],
+    K: ['10001', '10010', '10100', '11000', '10100', '10010', '10001'],
+    L: ['10000', '10000', '10000', '10000', '10000', '10000', '11111'],
+    M: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
+    N: ['10001', '11001', '10101', '10011', '10001', '10001', '10001'],
+    O: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'],
+    P: ['11110', '10001', '10001', '11110', '10000', '10000', '10000'],
+    R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
+    S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'],
+    T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
+    Y: ['10001', '10001', '01010', '00100', '00100', '00100', '00100'],
+    '3': ['11110', '00001', '00001', '01110', '00001', '00001', '11110'],
+    '-': ['00000', '00000', '00000', '11111', '00000', '00000', '00000'],
+    ' ': ['00000', '00000', '00000', '00000', '00000', '00000', '00000'],
+  };
+  const ICONS = [
+    ['000011110000','000111111000','111111111111','111100001111','111001100111','111011110111','111011110111','111001100111','111100001111','111111111111','111111111111','000000000000'],
+    ['001100001100','111111111111','111111111111','110000000011','110110011011','110110011011','110000000011','110110011011','110110011011','110000000011','111111111111','000000000000'],
+    ['011111111100','011000000110','011011011010','011111111010','011111111010','011011110010','011001100010','011000000010','011000000010','011111111110','001111111100','000000000000'],
+    ['000000000110','000000000110','000001100110','000001100110','000001100110','011001100110','011001100110','011001100110','011001100110','111111111111','111111111111','000000000000'],
+  ];
+  const LABELS = [['SCAN', 'FRIDGE'], ['3-DAY', 'PLAN'], ['MY', 'COOKBOOK'], ['DAILY', 'MACROS']];
+
   const rowSize = 1 + width * 3;
   const rawImageData = Buffer.alloc(height * rowSize);
   for (let y = 0; y < height; y++) {
@@ -285,6 +349,45 @@ function createRichMenuPngBuffer() {
       rawImageData[px] = r; rawImageData[px + 1] = g; rawImageData[px + 2] = b;
     }
   }
+
+  function fillRect(x0, y0, w, h, r, g, b) {
+    for (let y = Math.max(0, y0); y < Math.min(height, y0 + h); y++) {
+      const rowOffset = y * rowSize;
+      for (let x = Math.max(0, x0); x < Math.min(width, x0 + w); x++) {
+        const px = rowOffset + 1 + x * 3;
+        rawImageData[px] = r; rawImageData[px + 1] = g; rawImageData[px + 2] = b;
+      }
+    }
+  }
+
+  function drawText(text, centerX, startY, scale) {
+    const charW = 5 * scale;
+    const gap = 2 * scale;
+    let cursorX = Math.round(centerX - (text.length * charW + (text.length - 1) * gap) / 2);
+    for (const ch of text) {
+      const glyph = FONT[ch] || FONT[' '];
+      for (let gy = 0; gy < 7; gy++) {
+        for (let gx = 0; gx < 5; gx++) {
+          if (glyph[gy][gx] === '1') fillRect(cursorX + gx * scale, startY + gy * scale, scale, scale, 255, 255, 255);
+        }
+      }
+      cursorX += charW + gap;
+    }
+  }
+
+  for (let t = 0; t < 4; t++) {
+    const centerX = t * 625 + 312;
+    const iconScale = 16;
+    const iconStartX = centerX - (12 * iconScale) / 2;
+    for (let iy = 0; iy < 12; iy++) {
+      for (let ix = 0; ix < 12; ix++) {
+        if (ICONS[t][iy][ix] === '1') fillRect(iconStartX + ix * iconScale, 170 + iy * iconScale, iconScale, iconScale, 255, 255, 255);
+      }
+    }
+    drawText(LABELS[t][0], centerX, 430, 10);
+    drawText(LABELS[t][1], centerX, 535, 10);
+  }
+
   const compressed = zlib.deflateSync(rawImageData);
   function makeChunk(type, data) {
     const typeBuf = Buffer.from(type, 'ascii');
@@ -300,6 +403,7 @@ function createRichMenuPngBuffer() {
     crcBuf.writeUInt32BE((crc ^ 0xffffffff) >>> 0, 0);
     return Buffer.concat([lenBuf, typeBuf, data, crcBuf]);
   }
+
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0);
   ihdr.writeUInt32BE(height, 4);
@@ -313,15 +417,15 @@ async function setupRichMenu() {
     for (const m of existing.richmenus || []) await messagingClient.deleteRichMenu(m.richMenuId).catch(() => {});
 
     const richMenuRes = await messagingClient.createRichMenu({
-      size: { width: 2500, height: 405 }, // Compact 405px size
+      size: { width: 2500, height: 843 },
       selected: true,
       name: 'FridgeFriend_Pro_Menu_v13',
       chatBarText: '🍳 Chef Menu',
       areas: [
-        { bounds: { x: 0, y: 0, width: 625, height: 405 }, action: { type: 'uri', label: 'Scan Fridge', uri: 'https://line.me/R/nv/camera/' } },
-        { bounds: { x: 625, y: 0, width: 625, height: 405 }, action: { type: 'postback', label: '3-Day Plan', data: 'action=meal_plan', displayText: '🗓️ Generate 3-Day Zero-Waste Meal Plan' } },
-        { bounds: { x: 1250, y: 0, width: 625, height: 405 }, action: { type: 'message', label: 'My Cookbook', text: 'saved' } },
-        { bounds: { x: 1875, y: 0, width: 625, height: 405 }, action: { type: 'message', label: 'Daily Macros', text: 'stats' } },
+        { bounds: { x: 0, y: 0, width: 625, height: 843 }, action: { type: 'uri', label: 'Scan Fridge', uri: 'https://line.me/R/nv/camera/' } },
+        { bounds: { x: 625, y: 0, width: 625, height: 843 }, action: { type: 'postback', label: '3-Day Plan', data: 'action=meal_plan', displayText: '🗓️ Generate 3-Day Zero-Waste Meal Plan' } },
+        { bounds: { x: 1250, y: 0, width: 625, height: 843 }, action: { type: 'message', label: 'My Cookbook', text: 'saved' } },
+        { bounds: { x: 1875, y: 0, width: 625, height: 843 }, action: { type: 'message', label: 'Daily Macros', text: 'stats' } },
       ],
     });
 
@@ -334,7 +438,7 @@ async function setupRichMenu() {
     if (!uploadRes.ok) throw new Error(`Image upload failed (${uploadRes.status}): ${await uploadRes.text()}`);
 
     await messagingClient.setDefaultRichMenu(richMenuId);
-    console.log('✅ Deployed Compact Rich Menu:', richMenuId);
+    console.log('✅ Deployed Native Bottom Rich Menu:', richMenuId);
   } catch (e) {
     console.warn('⚠️ Rich Menu setup skipped:', e?.message || e);
   }
@@ -343,9 +447,12 @@ async function setupRichMenu() {
 app.get('/', (req, res) => res.send('FridgeFriend Pro LINE Bot is running!'));
 
 app.post('/webhook', line.middleware(lineConfig), (req, res) => {
+  console.log('📩 Webhook hit! Events:', req.body.events.length);
   res.status(200).end();
   req.body.events.forEach((event) => {
-    handleEvent(event).catch((err) => console.error('❌ Error:', err?.message || err));
+    handleEvent(event).catch((err) =>
+      console.error('❌ Error:', err?.status, err?.message, JSON.stringify(err?.errors || err?.body || ''))
+    );
   });
 });
 
@@ -368,20 +475,28 @@ async function getAvailableModels() {
       }
     }
     found.sort((a, b) => (a.includes('lite') ? -1 : 1));
-    if (found.length > 0) { cachedModels = found; return cachedModels; }
-  } catch {}
+    if (found.length > 0) { cachedModels = found; console.log('📋 Discovered models:', cachedModels); return cachedModels; }
+  } catch (e) {
+    console.warn('⚠️ Could not list models:', e.message);
+  }
   return ['gemini-2.5-flash'];
 }
 
+// Single-call sequential fallback (avoids 3x parallel RPM bursts so 70+ concurrent users run smoothly)
 async function generateWithFallback(contents, config) {
   const models = await getAvailableModels();
   let lastErr;
+
   for (let i = 0; i < models.length; i++) {
+    const model = models[i];
     try {
-      return await ai.models.generateContent({ model: models[i], contents, config });
+      const res = await ai.models.generateContent({ model, contents, config });
+      console.log(`✅ Winner: ${model}`);
+      return res;
     } catch (err) {
       lastErr = err;
-      await new Promise((r) => setTimeout(r, 600));
+      console.warn(`⚠️ ${model} failed (${err?.status || err?.message}), trying next...`);
+      await new Promise((r) => setTimeout(r, 800 + Math.random() * 400));
     }
   }
   throw lastErr;
@@ -395,23 +510,31 @@ function buildWelcomeCard() {
     contents: {
       type: 'bubble',
       header: {
-        type: 'box', layout: 'vertical', backgroundColor: '#ECFDF5', paddingAll: 'lg',
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#ECFDF5',
+        paddingAll: 'lg',
         contents: [
           { type: 'text', text: '🍳 FRIDGEFRIEND AI', color: '#059669', size: 'xs', weight: 'bold' },
           { type: 'text', text: 'Your Smart Kitchen & Macro Chef', color: '#064E3B', size: 'lg', weight: 'bold', wrap: true },
         ],
       },
       body: {
-        type: 'box', layout: 'vertical', spacing: 'sm',
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
         contents: [
           { type: 'text', text: 'Try any input mode (English / ไทย / မြန်မာ):', size: 'sm', weight: 'bold', color: '#111827', wrap: true },
-          { type: 'text', text: '📸 Snap a fridge photo (Verify & Edit ingredients)', size: 'xs', color: '#374151', wrap: true },
-          { type: 'text', text: '🎙️ Voice note or ✍️ type ingredients', size: 'xs', color: '#374151', wrap: true },
+          { type: 'text', text: '📸 Snap a fridge photo or grocery receipt', size: 'xs', color: '#374151', wrap: true },
+          { type: 'text', text: '🎙️ Hold the mic & speak in English, Thai, or Burmese', size: 'xs', color: '#374151', wrap: true },
+          { type: 'text', text: '✍️ Type ingredients in any language', size: 'xs', color: '#374151', wrap: true },
           { type: 'text', text: '🌐 Type "burmese", "thai", or "english" to switch language', size: 'xs', color: '#059669', weight: 'bold', wrap: true },
         ],
       },
       footer: {
-        type: 'box', layout: 'vertical', spacing: 'xs',
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'xs',
         contents: [
           { type: 'button', style: 'primary', color: '#10B981', height: 'sm', action: { type: 'message', label: '🍗 Try Demo: Chicken & Garlic', text: 'chicken breast, garlic' } },
           { type: 'button', style: 'secondary', height: 'sm', action: { type: 'postback', label: '🌐 Change Language (TH/EN/MY)', data: 'action=lang_menu', displayText: '🌐 Change Language' } },
@@ -438,69 +561,7 @@ function getFilterQuickReplies(session) {
   };
 }
 
-function buildPantryVerificationCard(items, batchId, session) {
-  const itemRows = items.map((item) => ({
-    type: 'box',
-    layout: 'horizontal',
-    spacing: 'sm',
-    margin: 'xs',
-    contents: [
-      { type: 'text', text: '🥬', size: 'sm', flex: 0 },
-      { type: 'text', text: item, size: 'sm', color: '#1F2937', weight: 'bold', wrap: true, flex: 1 },
-    ],
-  }));
-
-  return {
-    type: 'flex',
-    altText: '🔍 Verify Scanned Ingredients',
-    contents: {
-      type: 'bubble',
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        backgroundColor: '#ECFDF5',
-        paddingAll: 'md',
-        contents: [
-          { type: 'text', text: t(session, 'verifyTitle'), color: '#059669', size: 'xs', weight: 'bold' },
-          { type: 'text', text: t(session, 'verifySubtitle'), color: '#064E3B', size: 'sm', weight: 'bold', wrap: true },
-        ],
-      },
-      body: {
-        type: 'box',
-        layout: 'vertical',
-        spacing: 'sm',
-        paddingAll: 'lg',
-        contents: [
-          { type: 'text', text: `Detected ${items.length} ingredient(s):`, size: 'xs', color: '#6B7280' },
-          { type: 'separator', margin: 'sm' },
-          ...itemRows,
-        ],
-      },
-      footer: {
-        type: 'box',
-        layout: 'vertical',
-        spacing: 'sm',
-        paddingAll: 'md',
-        contents: [
-          {
-            type: 'button',
-            style: 'primary',
-            color: '#10B981',
-            height: 'sm',
-            action: { type: 'postback', label: t(session, 'confirmBtn'), data: `action=pantry_confirm&batch=${batchId}`, displayText: 'Confirm ingredients and find recipes 🍳' },
-          },
-          {
-            type: 'button',
-            style: 'secondary',
-            height: 'sm',
-            action: { type: 'postback', label: t(session, 'editBtn'), data: `action=pantry_edit&batch=${batchId}`, displayText: 'I want to edit my ingredients ✏️' },
-          },
-        ],
-      },
-    },
-  };
-}
-
+// --- Clean Executive Flex Card for 5-Stream B2B Business Model & Live Metrics ---
 function buildB2BRevenueCard(session) {
   const totalUsers = Object.keys(db.users || {}).length;
   const affViews = db.analytics.affiliateClicks || 0;
@@ -1415,24 +1476,6 @@ async function handleEvent(event) {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: confirmMap[lang] }] });
     }
 
-    if (action === 'pantry_confirm') {
-      const batchId = params.get('batch');
-      const items = pendingPantryItems.get(batchId) || [];
-      session.lastPromptType = 'text';
-      session.lastText = items.join(', ');
-      session.waitingForPantryEdit = false;
-      recordPantryTrends(session.lastText, []);
-      if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-      const carousel = await generateRecipesForSession(session);
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: t(session, 'confirmedHeader') }, carousel] });
-    }
-
-    if (action === 'pantry_edit') {
-      session.waitingForPantryEdit = true;
-      saveDB();
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: t(session, 'editPrompt') }] });
-    }
-
     if (action === 'sponsor_click') {
       const recipe = recipeStore.get(params.get('id'));
       const sponsor = recipe?.sponsor || getContextualSponsor();
@@ -1524,6 +1567,17 @@ async function handleEvent(event) {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `✅ Updated daily target to ${cal} kcal & ${pro}g protein!` }, buildStatsCard(session)] });
     }
 
+    if (action === 'receipt_cook') {
+      const items = pendingReceiptItems.get(params.get('batch')) || [];
+      if (items.length === 0) return null;
+      session.lastPromptType = 'text';
+      session.lastText = items.join(', ');
+      recordPantryTrends(session.lastText, []);
+      if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
+      const carousel = await generateRecipesForSession(session);
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `🍳 Cooking with your ${items.length} scanned receipt items:` }, carousel] });
+    }
+
     if (action === 'meal_plan') {
       if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
       const planCarousel = await generateMealPlanForSession(session);
@@ -1547,7 +1601,7 @@ async function handleEvent(event) {
     if (lower === 'burmese' || lower === 'မြန်မာ') {
       session.lang = 'my';
       saveDB();
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ မြန်မာဘာသာသို့ ပြောင်းပြီးပါပြီ!' }] });
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ မြန်မာဘာသာသို့ ပြောင်းလဲပြီးပါပြီ!' }] });
     }
     if (lower === 'thai' || lower === 'ไทย' || lower === 'ภาษาไทย') {
       session.lang = 'th';
@@ -1557,18 +1611,7 @@ async function handleEvent(event) {
     if (lower === 'english' || lower === 'en') {
       session.lang = 'en';
       saveDB();
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ Language set to English!' }] });
-    }
-
-    if (session.waitingForPantryEdit) {
-      session.waitingForPantryEdit = false;
-      session.lastPromptType = 'text';
-      session.lastText = rawText;
-      recordPantryTrends(rawText, []);
-      saveDB();
-      if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-      const carousel = await generateRecipesForSession(session);
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `✅ Updated ingredients: "${rawText}"` }, carousel] });
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ Language switched to English!' }] });
     }
 
     if (lower === 'help' || lower === 'menu' || lower === 'hi' || lower === 'hello' || lower === 'สวัสดี' || lower === 'မင်္ဂလာပါ') {
@@ -1628,7 +1671,7 @@ async function handleEvent(event) {
     const classifyRes = await generateWithFallback(
       [
         { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
-        `Analyze this image. Is it a shopping/grocery RECEIPT, or a photo of FOOD/FRIDGE ingredients? Return ONLY valid JSON: { "type": "receipt" or "food", "receiptFoodItems": ["item 1", "item 2"], "fridgeIngredients": ["chicken breast", "garlic", "tomato"] }`,
+        `Analyze this image. Is it a shopping/grocery RECEIPT, or a photo of FOOD/FRIDGE ingredients? Return ONLY valid JSON: { "type": "receipt" or "food", "receiptFoodItems": ["item 1", "item 2"] }`,
       ],
       { responseMimeType: 'application/json' }
     );
@@ -1641,20 +1684,13 @@ async function handleEvent(event) {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildReceiptCard(parsedClass.receiptFoodItems, batchId)] });
     }
 
-    const detectedIngredients = Array.isArray(parsedClass.fridgeIngredients) && parsedClass.fridgeIngredients.length > 0
-      ? parsedClass.fridgeIngredients
-      : ['chicken breast', 'garlic', 'eggs', 'rice'];
-
-    const batchId = `${Date.now()}`;
-    pendingPantryItems.set(batchId, detectedIngredients);
-    session.lastImageBase64 = base64Image;
     session.lastPromptType = 'image';
+    session.lastImageBase64 = base64Image;
+    session.lastText = '';
     saveDB();
 
-    return messagingClient.replyMessage({
-      replyToken: event.replyToken,
-      messages: [buildPantryVerificationCard(detectedIngredients, batchId, session)],
-    });
+    const carousel = await generateRecipesForSession(session);
+    return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
   }
 
   if (event.message.type === 'audio') {
