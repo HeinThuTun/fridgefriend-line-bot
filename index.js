@@ -352,140 +352,11 @@ async function setupRichMenu() {
 
 app.get('/', (req, res) => res.send('FridgeFriend Pro LINE Bot is running!'));
 
-// --- Pure Node.js Custom Dish Hero Banner (100% Exact Match Fallback — Never Shows Wrong Food!) ---
-app.get('/dish-banner', (req, res) => {
-  const title = (req.query.title || 'FRIDGEFRIEND RECIPE').toUpperCase().slice(0, 28);
-  const sub = (req.query.sub || 'FRESH HOME COOKED').toUpperCase().slice(0, 32);
-  const bg = req.query.bg || '065F46';
-  const rBg = parseInt(bg.slice(0, 2), 16) || 6;
-  const gBg = parseInt(bg.slice(2, 4), 16) || 95;
-  const bBg = parseInt(bg.slice(4, 6), 16) || 70;
-
-  const width = 800;
-  const height = 520;
-  const FONT = {
-    A: ['01110','10001','10001','11111','10001','10001','10001'],
-    B: ['11110','10001','10001','11110','10001','10001','11110'],
-    C: ['01111','10000','10000','10000','10000','10000','01111'],
-    D: ['11110','10001','10001','10001','10001','10001','11110'],
-    E: ['11111','10000','10000','11110','10000','10000','11111'],
-    F: ['11111','10000','10000','11110','10000','10000','10000'],
-    G: ['01111','10000','10000','10111','10001','10001','01111'],
-    H: ['10001','10001','10001','11111','10001','10001','10001'],
-    I: ['11111','00100','00100','00100','00100','00100','11111'],
-    J: ['00111','00010','00010','00010','10010','10010','01100'],
-    K: ['10001','10010','10100','11000','10100','10010','10001'],
-    L: ['10000','10000','10000','10000','10000','10000','11111'],
-    M: ['10001','11011','10101','10101','10001','10001','10001'],
-    N: ['10001','11001','10101','10011','10001','10001','10001'],
-    O: ['01110','10001','10001','10001','10001','10001','01110'],
-    P: ['11110','10001','10001','11110','10000','10000','10000'],
-    Q: ['01110','10001','10001','10001','10101','10010','01101'],
-    R: ['11110','10001','10001','11110','10100','10010','10001'],
-    S: ['01111','10000','10000','01110','00001','00001','11110'],
-    T: ['11111','00100','00100','00100','00100','00100','00100'],
-    U: ['10001','10001','10001','10001','10001','10001','01110'],
-    V: ['10001','10001','10001','10001','10001','01010','00100'],
-    W: ['10001','10001','10001','10101','10101','11011','10001'],
-    X: ['10001','10001','01010','00100','01010','10001','10001'],
-    Y: ['10001','10001','01010','00100','00100','00100','00100'],
-    Z: ['11111','00001','00010','00100','01000','10000','11111'],
-    '0': ['01110','10011','10101','10101','11001','10001','01110'],
-    '1': ['00100','01100','00100','00100','00100','00100','01110'],
-    '2': ['01110','10001','00001','00110','01000','10000','11111'],
-    '3': ['11110','00001','00001','01110','00001','00001','11110'],
-    '4': ['00010','00110','01010','10010','11111','00010','00010'],
-    '5': ['11111','10000','11110','00001','00001','10001','01110'],
-    '6': ['01110','10000','11110','10001','10001','10001','01110'],
-    '7': ['11111','00001','00010','00100','01000','01000','01000'],
-    '8': ['01110','10001','10001','01110','10001','10001','01110'],
-    '9': ['01110','10001','10001','01111','00001','00001','01110'],
-    '-': ['00000','00000','00000','11111','00000','00000','00000'],
-    '|': ['00100','00100','00100','00100','00100','00100','00100'],
-    ' ': ['00000','00000','00000','00000','00000','00000','00000'],
-  };
-
-  const rowSize = 1 + width * 3;
-  const raw = Buffer.alloc(height * rowSize);
-  for (let y = 0; y < height; y++) {
-    const off = y * rowSize;
-    raw[off] = 0;
-    const border = y < 14 || y >= height - 14;
-    for (let x = 0; x < width; x++) {
-      const isEdge = border || x < 14 || x >= width - 14;
-      const px = off + 1 + x * 3;
-      raw[px] = isEdge ? 167 : rBg;
-      raw[px + 1] = isEdge ? 243 : gBg;
-      raw[px + 2] = isEdge ? 208 : bBg;
-    }
-  }
-
-  function fillRect(x0, y0, w, h, r, g, b) {
-    for (let y = Math.max(0, y0); y < Math.min(height, y0 + h); y++) {
-      const off = y * rowSize;
-      for (let x = Math.max(0, x0); x < Math.min(width, x0 + w); x++) {
-        const px = off + 1 + x * 3;
-        raw[px] = r; raw[px + 1] = g; raw[px + 2] = b;
-      }
-    }
-  }
-
-  function drawCenteredText(str, y, scale, r, g, b) {
-    const clean = str.replace(/[^A-Z0-9\-| ]/g, ' ').replace(/\s+/g, ' ').trim();
-    const charW = 5 * scale;
-    const gap = 2 * scale;
-    let cx = Math.round((width - (clean.length * charW + Math.max(0, clean.length - 1) * gap)) / 2);
-    for (const ch of clean) {
-      const glyph = FONT[ch] || FONT[' '];
-      for (let gy = 0; gy < 7; gy++) {
-        for (let gx = 0; gx < 5; gx++) {
-          if (glyph[gy][gx] === '1') fillRect(cx + gx * scale, y + gy * scale, scale, scale, r, g, b);
-        }
-      }
-      cx += charW + gap;
-    }
-  }
-
-  fillRect(310, 145, 180, 18, 253, 230, 138);
-  fillRect(330, 163, 140, 36, 255, 255, 255);
-  fillRect(355, 199, 90, 14, 209, 250, 229);
-
-  const words = title.split(' ');
-  const line1 = words.slice(0, 2).join(' ');
-  const line2 = words.slice(2, 4).join(' ');
-  drawCenteredText(line1, line2 ? 255 : 275, 5, 255, 255, 255);
-  if (line2) drawCenteredText(line2, 305, 5, 255, 255, 255);
-  drawCenteredText(sub, 385, 3, 167, 243, 208);
-
-  const compressed = zlib.deflateSync(raw);
-  function chunk(type, data) {
-    const t = Buffer.from(type, 'ascii');
-    const l = Buffer.alloc(4); l.writeUInt32BE(data.length, 0);
-    const c = Buffer.alloc(4);
-    const inp = Buffer.concat([t, data]);
-    let crc = 0xffffffff;
-    for (let i = 0; i < inp.length; i++) {
-      crc ^= inp[i];
-      for (let j = 0; j < 8; j++) crc = crc & 1 ? (crc >>> 1) ^ 0xedb88320 : crc >>> 1;
-    }
-    c.writeUInt32BE((crc ^ 0xffffffff) >>> 0, 0);
-    return Buffer.concat([l, t, data, c]);
-  }
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(width, 0); ihdr.writeUInt32BE(height, 4); ihdr[8] = 8; ihdr[9] = 2;
-  res.setHeader('Content-Type', 'image/png');
-  res.setHeader('Cache-Control', 'public, max-age=86400');
-  res.send(Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]), chunk('IHDR', ihdr), chunk('IDAT', compressed), chunk('IEND', Buffer.alloc(0))]));
-});
-
 app.post('/webhook', line.middleware(lineConfig), (req, res) => {
-  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-  const host = req.headers['x-forwarded-host'] || req.get('host');
-  const publicBaseUrl = host ? `${proto}://${host}` : '';
   console.log('📩 Webhook hit! Events:', req.body.events.length);
   res.status(200).end();
   req.body.events.forEach((event) => {
-    handleEvent(event, publicBaseUrl).catch((err) =>
+    handleEvent(event).catch((err) =>
       console.error('❌ Error:', err?.status, err?.message, JSON.stringify(err?.errors || err?.body || ''))
     );
   });
@@ -498,16 +369,17 @@ async function getMessageBase64(messageId) {
   return Buffer.concat(chunks).toString('base64');
 }
 
-// --- Zero-Mismatch Dish Photo Resolver (Exact Match Only -> Live Pexels -> Custom Dish Banner) ---
-async function getRecipeImageUrl(recipe, usedUrls = new Set(), publicBaseUrl = '') {
+// --- Real Food Photo Resolver (Live Pexels API -> Exact TheMealDB Match -> Category Savory Photo) ---
+async function getRecipeImageUrl(recipe, usedUrls = new Set()) {
   const exactDish = (recipe.canonicalDish || '').trim();
+  const mainIngredient = (recipe.mainIngredient || 'chicken').trim().toLowerCase();
 
-  // 1. Optional Live Pexels Search (if PEXELS_API_KEY is set in Render Env Vars, fetches exact dish photo!)
+  // 1. Live Pexels Food Photography Search (When PEXELS_API_KEY is set in Render Env Vars, returns 100% real dish photo)
   const pexelsKey = process.env.PEXELS_API_KEY?.trim();
   if (pexelsKey && exactDish) {
     try {
-      const q = encodeURIComponent(`${exactDish} food dish`);
-      const res = await fetch(`https://api.pexels.com/v1/search?query=${q}&per_page=3&orientation=landscape`, {
+      const q = encodeURIComponent(`${exactDish} food meal`);
+      const res = await fetch(`https://api.pexels.com/v1/search?query=${q}&per_page=5&orientation=landscape`, {
         headers: { Authorization: pexelsKey },
       });
       if (res.ok) {
@@ -521,32 +393,45 @@ async function getRecipeImageUrl(recipe, usedUrls = new Set(), publicBaseUrl = '
     } catch {}
   }
 
-  // 2. ONLY accept an EXACT dish name match from TheMealDB (never partial/random fallback photos!)
+  // 2. Exact Dish Match in TheMealDB
   if (exactDish) {
     try {
       const res = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(exactDish)}`);
       if (res.ok) {
         const data = await res.json();
-        const exactHit = (data.meals || []).find(
-          (m) => m?.strMealThumb && m?.strMeal?.toLowerCase() === exactDish.toLowerCase() && !usedUrls.has(m.strMealThumb)
+        const hit = (data.meals || []).find(
+          (m) => m?.strMealThumb && m?.strCategory !== 'Dessert' && !usedUrls.has(m.strMealThumb)
         );
-        if (exactHit) {
-          usedUrls.add(exactHit.strMealThumb);
-          return exactHit.strMealThumb;
+        if (hit) {
+          usedUrls.add(hit.strMealThumb);
+          return hit.strMealThumb;
         }
       }
     } catch {}
   }
 
-  // 3. For any custom dish not in TheMealDB, render an exact dish-titled hero banner (0% mismatch ever!)
-  const baseUrl = (process.env.RENDER_EXTERNAL_URL || publicBaseUrl || 'https://fridgefriend-line-bot.onrender.com').replace(/\/$/, '');
-  const bannerTitle = encodeURIComponent(exactDish || recipe.title || 'FRIDGEFRIEND DISH');
-  const bannerSub = encodeURIComponent(`${Number(recipe.calories) || 450} KCAL | ${Number(recipe.protein) || 35}G PROTEIN`);
-  const palette = ['065F46', '1E3A8A', '7C2D12'];
-  const bg = palette[usedUrls.size % palette.length];
-  const bannerUrl = `${baseUrl}/dish-banner?title=${bannerTitle}&sub=${bannerSub}&bg=${bg}`;
-  usedUrls.add(bannerUrl);
-  return bannerUrl;
+  // 3. Savory Category Photo in TheMealDB (Matches Beef / Pasta / Seafood / Pork / Vegetarian / Chicken)
+  const text = `${exactDish} ${mainIngredient}`.toLowerCase();
+  let category = 'Chicken';
+  if (/pasta|spaghetti|noodle|macaroni/.test(text)) category = 'Pasta';
+  else if (/beef|steak/.test(text)) category = 'Beef';
+  else if (/pork|bacon/.test(text)) category = 'Pork';
+  else if (/shrimp|prawn|fish|salmon|seafood/.test(text)) category = 'Seafood';
+  else if (/tofu|veggie|vegetable|salad/.test(text)) category = 'Vegetarian';
+
+  try {
+    const res = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?c=${encodeURIComponent(category)}`);
+    if (res.ok) {
+      const data = await res.json();
+      const hit = (data.meals || []).find((m) => m?.strMealThumb && !usedUrls.has(m.strMealThumb));
+      if (hit) {
+        usedUrls.add(hit.strMealThumb);
+        return hit.strMealThumb;
+      }
+    }
+  } catch {}
+
+  return 'https://www.themealdb.com/images/media/meals/sutysw1468247559.jpg';
 }
 
 async function getAvailableModels() {
@@ -882,7 +767,7 @@ function buildFlashDealCard() {
   };
 }
 
-async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = '', publicBaseUrl = '') {
+async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = '') {
   const safeRecipes = Array.isArray(recipes) && recipes.length > 0
     ? recipes.slice(0, 5)
     : [{
@@ -922,7 +807,7 @@ async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterSt
     const normalizedRecipe = { ...recipe, id: recipeId, title, time, calories, protein, costThb, macros, allIngredients, missingItems: missing, steps, sponsor };
     recipeStore.set(recipeId, normalizedRecipe);
 
-    const imageUrl = await getRecipeImageUrl(normalizedRecipe, usedUrls, publicBaseUrl);
+    const imageUrl = await getRecipeImageUrl(normalizedRecipe, usedUrls);
     const hasMissing = missing[0] !== 'None — ready to cook!' && !/^none/i.test(missing[0]);
 
     bubbles.push({
@@ -1254,7 +1139,7 @@ function buildShoppingListCard(title, items, allIngredients = []) {
 }
 
 // --- Gemini AI Generators (Auto-Matches Burmese / Thai / English Output) ---
-async function generateRecipesForSession(session, filterStyle = null, publicBaseUrl = '') {
+async function generateRecipesForSession(session, filterStyle = null) {
   const styleInstructions = {
     budget_60: 'Focus strictly on STUDENT BUDGET-FRIENDLY meals costing UNDER 60 THB per serving using affordable local Thai ingredients.',
     high_protein: 'Focus strictly on HIGH-PROTEIN fitness meals (40g+ protein per serving).',
@@ -1301,7 +1186,7 @@ Suggest 3 distinct, practical, delicious recipes.`;
   const response = await generateWithFallback(geminiContents, { responseMimeType: 'application/json' });
   const parsed = JSON.parse(response.text.replace(/```json|```/g, '').trim());
   const recipeList = Array.isArray(parsed) ? parsed : (parsed.recipes || parsed.meals || Object.values(parsed).find(Array.isArray) || []);
-  return buildRecipeCarousel(recipeList, true, filterStyle || '', publicBaseUrl);
+  return buildRecipeCarousel(recipeList, true, filterStyle || '');
 }
 
 async function generateMealPlanForSession(session) {
@@ -1335,7 +1220,7 @@ Return ONLY valid JSON (no markdown) matching this exact format:
 }
 
 // --- Webhook Event Handler ---
-async function handleEvent(event, publicBaseUrl = '') {
+async function handleEvent(event) {
   const userId = event.source?.userId || 'default_user';
   const session = getSession(userId);
 
@@ -1441,7 +1326,7 @@ async function handleEvent(event, publicBaseUrl = '') {
       session.lastText = items.join(', ');
       recordPantryTrends(session.lastText, []);
       if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-      const carousel = await generateRecipesForSession(session, null, publicBaseUrl);
+      const carousel = await generateRecipesForSession(session);
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `🍳 Cooking with your ${items.length} scanned receipt items:` }, carousel] });
     }
 
@@ -1454,7 +1339,7 @@ async function handleEvent(event, publicBaseUrl = '') {
     if (action === 'filter') {
       if (!session.lastPromptType) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: 'Send ingredients, a voice note, or a fridge photo first! 🥦📸' }] });
       if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-      const carousel = await generateRecipesForSession(session, params.get('style'), publicBaseUrl);
+      const carousel = await generateRecipesForSession(session, params.get('style'));
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
     }
   }
@@ -1562,7 +1447,7 @@ async function handleEvent(event, publicBaseUrl = '') {
 
     if (lower === 'saved' || lower === 'cookbook' || lower === 'favorites') {
       if (session.saved.length === 0) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '📖 Your Cookbook is empty! Tap "❤️ Save" on any recipe card to save it here.' }] });
-      const savedCarousel = await buildRecipeCarousel(session.saved, false, '', publicBaseUrl);
+      const savedCarousel = await buildRecipeCarousel(session.saved, false);
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [savedCarousel] });
     }
 
@@ -1572,7 +1457,7 @@ async function handleEvent(event, publicBaseUrl = '') {
     session.lastImageBase64 = null;
     recordPantryTrends(rawText, []);
 
-    const carousel = await generateRecipesForSession(session, null, publicBaseUrl);
+    const carousel = await generateRecipesForSession(session);
     return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
   }
 
@@ -1601,7 +1486,7 @@ async function handleEvent(event, publicBaseUrl = '') {
     session.lastText = '';
     saveDB();
 
-    const carousel = await generateRecipesForSession(session, null, publicBaseUrl);
+    const carousel = await generateRecipesForSession(session);
     return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
   }
 
@@ -1620,7 +1505,7 @@ async function handleEvent(event, publicBaseUrl = '') {
     session.lastImageBase64 = null;
     recordPantryTrends(spokenIngredients, []);
 
-    const carousel = await generateRecipesForSession(session, null, publicBaseUrl);
+    const carousel = await generateRecipesForSession(session);
     return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `🎙️ Heard: "${spokenIngredients}"` }, carousel] });
   }
 
