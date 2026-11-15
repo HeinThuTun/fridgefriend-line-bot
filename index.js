@@ -703,7 +703,7 @@ function buildFlashDealCard() {
   };
 }
 
-// --- Multi-Theme Pastel Recipe Carousel (Full Uncut "Ad • ..." Banner + Pixel-Aligned Slots) ---
+// --- Multi-Theme Pastel Recipe Carousel (Full Uncut "Ad • ... ↗" Banner + Pixel-Aligned Slots) ---
 function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = '') {
   const safeRecipes = Array.isArray(recipes) && recipes.length > 0
     ? recipes.slice(0, 5)
@@ -867,7 +867,7 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
           },
         ],
       },
-      // Fixed-Height Body + Locked Slot Heights (Full Uncut Ad Text + Aligned Across Cards)
+      // Fixed-Height Body + Locked Slot Heights (Full Uncut Ad Text + Pinned "↗" Link Icon)
       body: {
         type: 'box',
         layout: 'vertical',
@@ -948,17 +948,23 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
               },
             ],
           },
-          // 3. Bottom Slot: Full Uncut "Ad • ..." Banner (Fixed 48px Height, Zero "..." Truncation)
+          // 3. Bottom Slot: Full Uncut "Ad • ..." Banner + Pinned "↗" Link Icon
           {
             type: 'box',
-            layout: 'vertical',
+            layout: 'horizontal',
             backgroundColor: '#FFFBEB',
             cornerRadius: 'md',
             height: '48px',
-            justifyContent: 'center',
+            alignItems: 'center',
             paddingStart: 'md',
             paddingEnd: 'md',
-            action: { type: 'postback', label: 'Partner Offer', data: `action=sponsor_click&id=${recipeId}`, displayText: `🏷️ ${sponsor.sponsor} Deal` },
+            spacing: 'sm',
+            action: {
+              type: 'postback',
+              label: 'Partner Offer',
+              data: `action=sponsor_click&id=${recipeId}`,
+              displayText: `🏷️ ${sponsor.sponsor} Deal`,
+            },
             contents: [
               {
                 type: 'text',
@@ -967,6 +973,15 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
                 color: '#B45309',
                 weight: 'bold',
                 wrap: true,
+                flex: 1,
+              },
+              {
+                type: 'text',
+                text: '↗',
+                size: 'sm',
+                color: '#D97706',
+                weight: 'bold',
+                flex: 0,
               },
             ],
           },
