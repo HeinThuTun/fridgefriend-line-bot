@@ -166,7 +166,6 @@ function loadDB() {
 
 const db = loadDB();
 
-// Non-blocking debounced disk writer (batches concurrent writes every 2s)
 let saveTimer = null;
 function saveDB() {
   if (saveTimer) return;
@@ -209,14 +208,12 @@ function getSession(userId) {
   return user;
 }
 
-// --- Stream 4: Verified B2B Partner Invite Codes ---
 const B2B_PARTNER_CODES = {
   FITFIRST26: { partner: 'Fitness First Thailand', calories: 2400, protein: 165 },
   JETTS2026: { partner: 'Jetts 24 Hour Fitness', calories: 2300, protein: 155 },
   TUGYM99: { partner: 'TU Rangsit Sports Complex', calories: 2200, protein: 150 },
 };
 
-// --- Stream 5 Helper: Record Anonymized FMCG Pantry Trends ---
 function recordPantryTrends(rawIngredientsText = '', missingItemsList = []) {
   if (rawIngredientsText) {
     const items = rawIngredientsText
@@ -242,7 +239,6 @@ function recordPantryTrends(rawIngredientsText = '', missingItemsList = []) {
   saveDB();
 }
 
-// --- Stream 2: Multi-Partner Contextual Ad Pool ---
 const PARTNER_AD_POOL = [
   { tags: ['protein', 'chicken', 'egg', 'beef', 'pork', 'salmon', 'fitness'], sponsor: 'Meiji High Protein (7-Eleven)', tagline: 'Meiji High Protein Milk (+28g P)', promoCode: 'FFMEIJI10 (10 THB Off)', url: 'https://www.7eleven.co.th/' },
   { tags: ['chicken', 'meat', 'budget', 'pork', 'fresh'], sponsor: 'CP FreshMart / Lotus’s Go Fresh', tagline: 'CP Fresh Chicken Packs — 25% Off', promoCode: 'FFCP25', url: 'https://www.lotuss.com/th' },
@@ -271,10 +267,10 @@ function getContextualSponsor(contextText = '', filterStyle = '', usedSponsors =
   return chosen;
 }
 
-// --- Rich Menu PNG Generator ---
+// --- Rich Menu PNG Generator (Compact 405px Height) ---
 function createRichMenuPngBuffer() {
   const width = 2500;
-  const height = 843;
+  const height = 405; // Compact height to prevent green box artifact
   const tileColors = [[6, 95, 70], [4, 120, 87], [5, 150, 105], [16, 185, 129]];
   const rowSize = 1 + width * 3;
   const rawImageData = Buffer.alloc(height * rowSize);
@@ -317,15 +313,15 @@ async function setupRichMenu() {
     for (const m of existing.richmenus || []) await messagingClient.deleteRichMenu(m.richMenuId).catch(() => {});
 
     const richMenuRes = await messagingClient.createRichMenu({
-      size: { width: 2500, height: 843 },
+      size: { width: 2500, height: 405 }, // Compact 405px size
       selected: true,
       name: 'FridgeFriend_Pro_Menu_v13',
       chatBarText: '🍳 Chef Menu',
       areas: [
-        { bounds: { x: 0, y: 0, width: 625, height: 843 }, action: { type: 'uri', label: 'Scan Fridge', uri: 'https://line.me/R/nv/camera/' } },
-        { bounds: { x: 625, y: 0, width: 625, height: 843 }, action: { type: 'postback', label: '3-Day Plan', data: 'action=meal_plan', displayText: '🗓️ Generate 3-Day Zero-Waste Meal Plan' } },
-        { bounds: { x: 1250, y: 0, width: 625, height: 843 }, action: { type: 'message', label: 'My Cookbook', text: 'saved' } },
-        { bounds: { x: 1875, y: 0, width: 625, height: 843 }, action: { type: 'message', label: 'Daily Macros', text: 'stats' } },
+        { bounds: { x: 0, y: 0, width: 625, height: 405 }, action: { type: 'uri', label: 'Scan Fridge', uri: 'https://line.me/R/nv/camera/' } },
+        { bounds: { x: 625, y: 0, width: 625, height: 405 }, action: { type: 'postback', label: '3-Day Plan', data: 'action=meal_plan', displayText: '🗓️ Generate 3-Day Zero-Waste Meal Plan' } },
+        { bounds: { x: 1250, y: 0, width: 625, height: 405 }, action: { type: 'message', label: 'My Cookbook', text: 'saved' } },
+        { bounds: { x: 1875, y: 0, width: 625, height: 405 }, action: { type: 'message', label: 'Daily Macros', text: 'stats' } },
       ],
     });
 
@@ -338,7 +334,7 @@ async function setupRichMenu() {
     if (!uploadRes.ok) throw new Error(`Image upload failed (${uploadRes.status}): ${await uploadRes.text()}`);
 
     await messagingClient.setDefaultRichMenu(richMenuId);
-    console.log('✅ Deployed Native Bottom Rich Menu:', richMenuId);
+    console.log('✅ Deployed Compact Rich Menu:', richMenuId);
   } catch (e) {
     console.warn('⚠️ Rich Menu setup skipped:', e?.message || e);
   }
@@ -427,15 +423,16 @@ function buildWelcomeCard() {
 
 function getFilterQuickReplies(session) {
   const lang = session?.lang || 'en';
-  const langLabel = lang === 'th' ? '🇹🇭 ภาษาไทย' : lang === 'my' ? '🇲🇲 မြန်မာ' : '🇬🇧 English';
+  const langLabel = lang === 'th' ? '🇹🇭 ภาษาไทย' : lang === 'my' ? '🇲🇲 မြန်မာ' : lang === 'en' ? '🇬🇧 English' : '🌐 Language';
+
   return {
     items: [
-      { type: 'action', action: { type: 'postback', label: langLabel, data: 'action=lang_menu', displayText: '🌐 Change Language' } },
-      { type: 'action', action: { type: 'postback', label: '🏷️ 30% Flash Deal', data: 'action=flash_deal', displayText: '🏷️ Flash Deal' } },
-      { type: 'action', action: { type: 'postback', label: '💰 Under 60 THB', data: 'action=filter&style=budget_60', displayText: '💰 Budget under 60 THB' } },
-      { type: 'action', action: { type: 'postback', label: '🗓️ 3-Day Plan', data: 'action=meal_plan', displayText: '🗓️ 3-Day Meal Plan' } },
-      { type: 'action', action: { type: 'postback', label: '💪 High Protein', data: 'action=filter&style=high_protein', displayText: '💪 High Protein' } },
-      { type: 'action', action: { type: 'postback', label: '🌶️ Thai Style', data: 'action=filter&style=thai_style', displayText: '🌶️ Thai Style' } },
+      { type: 'action', action: { type: 'postback', label: langLabel, data: 'action=lang_menu', displayText: '🌐 Change Language (TH/EN/MY)' } },
+      { type: 'action', action: { type: 'postback', label: '🏷️ 30% Flash Deal', data: 'action=flash_deal', displayText: '🏷️ Tonight’s Zero-Waste Flash Deal' } },
+      { type: 'action', action: { type: 'postback', label: '💰 Under 60 THB', data: 'action=filter&style=budget_60', displayText: '💰 Budget meals under 60 THB' } },
+      { type: 'action', action: { type: 'postback', label: '🗓️ 3-Day Plan', data: 'action=meal_plan', displayText: '🗓️ 3-Day Zero-Waste Meal Plan' } },
+      { type: 'action', action: { type: 'postback', label: '💪 High Protein', data: 'action=filter&style=high_protein', displayText: '💪 High Protein options' } },
+      { type: 'action', action: { type: 'postback', label: '🌶️ Thai Style', data: 'action=filter&style=thai_style', displayText: '🌶️ Thai Style options' } },
       { type: 'action', action: { type: 'message', label: '💼 B2B Revenue', text: 'revenue' } },
     ],
   };
@@ -510,82 +507,247 @@ function buildB2BRevenueCard(session) {
   const adClicks = db.analytics.sponsoredClicks || 0;
   const coupons = db.analytics.couponClaims || 0;
   const gymSeats = db.analytics.gymActivations || 0;
+
   const estThb = affViews * 15 + adClicks * 5 + coupons * 20 + gymSeats * 80;
+
+  const topPantry = Object.entries(db.analytics.ingredientCounts || {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([k, v]) => `${k} (${v})`)
+    .join(', ') || 'chicken, garlic, eggs';
+
+  const topMissing = Object.entries(db.analytics.missingCounts || {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([k, v]) => `${k} (${v})`)
+    .join(', ') || 'soy sauce, oyster sauce, rice';
 
   return {
     type: 'flex',
-    altText: '💼 B2B Business & Revenue Dashboard',
+    altText: '💼 FridgeFriend B2B Business & Revenue Dashboard',
     contents: {
       type: 'bubble',
       size: 'mega',
       header: {
-        type: 'box', layout: 'vertical', backgroundColor: '#1E293B', paddingAll: 'lg',
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#1E293B',
+        paddingAll: 'lg',
         contents: [
           { type: 'text', text: '💼 B2B MONETIZATION ENGINE', color: '#38BDF8', size: 'xs', weight: 'bold' },
           { type: 'text', text: 'FridgeFriend Revenue & Data', color: '#FFFFFF', size: 'lg', weight: 'bold' },
+          { type: 'text', text: '100% Free for Users • Monetized via B2B Partners', color: '#CBD5E1', size: 'xs', wrap: true },
         ],
       },
       body: {
-        type: 'box', layout: 'vertical', spacing: 'md',
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'md',
         contents: [
           {
-            type: 'box', layout: 'horizontal', backgroundColor: '#ECFDF5', cornerRadius: 'md', paddingAll: 'md',
+            type: 'box',
+            layout: 'horizontal',
+            backgroundColor: '#ECFDF5',
+            cornerRadius: 'md',
+            paddingAll: 'md',
             contents: [
-              { type: 'box', layout: 'vertical', flex: 1, contents: [{ type: 'text', text: 'USERS', size: 'xxs', color: '#065F46', weight: 'bold' }, { type: 'text', text: `${totalUsers}`, size: 'xl', color: '#047857', weight: 'bold' }] },
-              { type: 'box', layout: 'vertical', flex: 1, contents: [{ type: 'text', text: 'EST. VALUE', size: 'xxs', color: '#065F46', weight: 'bold' }, { type: 'text', text: `${estThb} THB`, size: 'xl', color: '#047857', weight: 'bold' }] },
+              {
+                type: 'box',
+                layout: 'vertical',
+                flex: 1,
+                contents: [
+                  { type: 'text', text: 'ACTIVE USERS', size: 'xxs', color: '#065F46', weight: 'bold' },
+                  { type: 'text', text: `${totalUsers}`, size: 'xl', color: '#047857', weight: 'bold' },
+                ],
+              },
+              {
+                type: 'box',
+                layout: 'vertical',
+                flex: 1,
+                contents: [
+                  { type: 'text', text: 'EST. B2B VALUE', size: 'xxs', color: '#065F46', weight: 'bold' },
+                  { type: 'text', text: `${estThb} THB`, size: 'xl', color: '#047857', weight: 'bold' },
+                ],
+              },
             ],
           },
-          { type: 'text', text: '5 Active B2B Revenue Streams: Affiliate, Ads, Coupons, Gym Licensing, FMCG Data', size: 'xs', color: '#475569', wrap: true },
+          { type: 'text', text: '5 ACTIVE B2B REVENUE STREAMS', size: 'xs', weight: 'bold', color: '#475569' },
+          {
+            type: 'box',
+            layout: 'vertical',
+            spacing: 'xs',
+            contents: [
+              {
+                type: 'box',
+                layout: 'horizontal',
+                contents: [
+                  { type: 'text', text: '1. Grocery Delivery Affiliate', size: 'xs', weight: 'bold', color: '#0F172A', flex: 4 },
+                  { type: 'text', text: `${affViews} carts`, size: 'xs', weight: 'bold', color: '#059669', align: 'end', flex: 2 },
+                ],
+              },
+              { type: 'text', text: 'Earns 5–8% commission when users order missing items via GrabMart or Tops.', size: 'xxs', color: '#64748B', wrap: true },
+            ],
+          },
+          { type: 'separator' },
+          {
+            type: 'box',
+            layout: 'vertical',
+            spacing: 'xs',
+            contents: [
+              {
+                type: 'box',
+                layout: 'horizontal',
+                contents: [
+                  { type: 'text', text: '2. Contextual Native Brand Ads', size: 'xs', weight: 'bold', color: '#0F172A', flex: 4 },
+                  { type: 'text', text: `${adClicks} clicks`, size: 'xs', weight: 'bold', color: '#D97706', align: 'end', flex: 2 },
+                ],
+              },
+              { type: 'text', text: 'Brands (Meiji, Healthy Boy) pay CPC fees to match ingredients with dishes.', size: 'xxs', color: '#64748B', wrap: true },
+            ],
+          },
+          { type: 'separator' },
+          {
+            type: 'box',
+            layout: 'vertical',
+            spacing: 'xs',
+            contents: [
+              {
+                type: 'box',
+                layout: 'horizontal',
+                contents: [
+                  { type: 'text', text: '3. Zero-Waste Flash Coupons', size: 'xs', weight: 'bold', color: '#0F172A', flex: 4 },
+                  { type: 'text', text: `${coupons} claims`, size: 'xs', weight: 'bold', color: '#DC2626', align: 'end', flex: 2 },
+                ],
+              },
+              { type: 'text', text: 'Supermarkets pay 20 THB CPA per redeemed near-expiry discount barcode.', size: 'xxs', color: '#64748B', wrap: true },
+            ],
+          },
+          { type: 'separator' },
+          {
+            type: 'box',
+            layout: 'vertical',
+            spacing: 'xs',
+            contents: [
+              {
+                type: 'box',
+                layout: 'horizontal',
+                contents: [
+                  { type: 'text', text: '4. B2B Gym & Clinic Licensing', size: 'xs', weight: 'bold', color: '#0F172A', flex: 4 },
+                  { type: 'text', text: `${gymSeats} seats`, size: 'xs', weight: 'bold', color: '#2563EB', align: 'end', flex: 2 },
+                ],
+              },
+              { type: 'text', text: 'Gyms pay 80 THB/member/mo & issue invite codes (e.g., redeem FITFIRST26).', size: 'xxs', color: '#64748B', wrap: true },
+            ],
+          },
+          { type: 'separator' },
+          {
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: '#F8FAFC',
+            cornerRadius: 'md',
+            paddingAll: 'sm',
+            spacing: 'xs',
+            contents: [
+              { type: 'text', text: '5. FMCG Pantry Trend Data (B2B SaaS)', size: 'xs', weight: 'bold', color: '#0F172A' },
+              { type: 'text', text: 'Anonymized household demand reports sold to food brands:', size: 'xxs', color: '#64748B', wrap: true },
+              { type: 'text', text: `🥬 Top In-Fridge: ${topPantry}`, size: 'xxs', color: '#047857', weight: 'bold', wrap: true },
+              { type: 'text', text: `🛒 Top Missing: ${topMissing}`, size: 'xxs', color: '#B91C1C', weight: 'bold', wrap: true },
+            ],
+          },
         ],
       },
       footer: {
-        type: 'box', layout: 'vertical',
-        contents: [{ type: 'button', style: 'primary', color: '#0F172A', height: 'sm', action: { type: 'message', label: '🔄 Refresh Dashboard', text: 'revenue' } }],
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'button',
+            style: 'primary',
+            color: '#0F172A',
+            height: 'sm',
+            action: { type: 'message', label: '🔄 Refresh Live Dashboard', text: 'revenue' },
+          },
+        ],
       },
     },
     quickReply: getFilterQuickReplies(session),
   };
 }
 
+// --- Stream 3: Zero-Waste Supermarket Flash Deal Coupon Card ---
 function buildFlashDealCard() {
   const code = `FF-LOTUS-${Math.floor(1000 + Math.random() * 9000)}`;
   return {
     type: 'flex',
-    altText: '🏷️ Zero-Waste Flash Deal!',
+    altText: '🏷️ Zero-Waste Supermarket Flash Deal!',
     contents: {
       type: 'bubble',
       header: {
-        type: 'box', layout: 'vertical', backgroundColor: '#B45309',
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#B45309',
         contents: [
-          { type: 'text', text: '♻️ ZERO-WASTE CLEARANCE', color: '#FDE68A', size: 'xs', weight: 'bold' },
+          { type: 'text', text: '♻️ ZERO-WASTE EVENING CLEARANCE', color: '#FDE68A', size: 'xs', weight: 'bold' },
           { type: 'text', text: '30% OFF Fresh Chicken & Greens', color: '#FFFFFF', size: 'lg', weight: 'bold', wrap: true },
         ],
       },
       body: {
-        type: 'box', layout: 'vertical', spacing: 'sm',
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
         contents: [
-          { type: 'text', text: "📍 Partner Store: Lotus's Go Fresh (Rangsit)", size: 'xs', color: '#374151', wrap: true },
-          { type: 'box', layout: 'vertical', backgroundColor: '#FEF3C7', cornerRadius: 'md', paddingAll: 'md', margin: 'md', contents: [{ type: 'text', text: 'CASHIER VOUCHER CODE', size: 'xxs', color: '#92400E', align: 'center', weight: 'bold' }, { type: 'text', text: code, size: 'xl', color: '#78350F', align: 'center', weight: 'bold' }] },
+          { type: 'text', text: "📍 Partner Store: Lotus's Go Fresh (Rangsit / TU Dome)", size: 'xs', color: '#374151', wrap: true },
+          { type: 'text', text: '⏰ Valid Today: 18:00 – 21:30 (Prevent Food Waste)', size: 'xs', color: '#374151', wrap: true },
+          { type: 'separator', margin: 'md' },
+          {
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: '#FEF3C7',
+            cornerRadius: 'md',
+            paddingAll: 'md',
+            margin: 'md',
+            contents: [
+              { type: 'text', text: 'CASHIER BARCODE VOUCHER', size: 'xxs', color: '#92400E', align: 'center', weight: 'bold' },
+              { type: 'text', text: code, size: 'xl', color: '#78350F', align: 'center', weight: 'bold' },
+            ],
+          },
+          { type: 'text', text: '💼 B2B Model: Supermarket pays 20 THB CPA per redeemed coupon.', size: 'xxs', color: '#6B7280', wrap: true },
         ],
       },
       footer: {
-        type: 'box', layout: 'vertical',
-        contents: [{ type: 'button', style: 'primary', color: '#D97706', height: 'sm', action: { type: 'uri', label: '📍 Open Store Map', uri: 'https://www.google.com/maps/search/Lotus+Go+Fresh+near+me' } }],
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          { type: 'button', style: 'primary', color: '#D97706', height: 'sm', action: { type: 'uri', label: '📍 Open Nearest Partner Store', uri: 'https://www.google.com/maps/search/Lotus+Go+Fresh+near+me' } },
+        ],
       },
     },
   };
 }
 
+// --- Multi-Theme Pastel Recipe Carousel (Fully Localized UI Buttons & Text) ---
 function buildRecipeCarousel(recipes, session, includeQuickReplies = true, filterStyle = '') {
-  const safeRecipes = Array.isArray(recipes) && recipes.length > 0 ? recipes.slice(0, 5) : [{
-    title: 'Thai Garlic Chicken Stir-Fry', emoji: '🍗', usedIngredients: ['Chicken breast', 'Garlic'], calories: 460, protein: 38, costThb: 45, time: '15m',
-    allIngredients: ['200g chicken breast', '2 cloves garlic', '1 tbsp soy sauce', '1 cup rice'], missingItems: ['1 tbsp soy sauce', '1 cup rice'], steps: ['Slice chicken.', 'Stir-fry for 8 mins.', 'Serve hot!']
-  }];
+  const safeRecipes = Array.isArray(recipes) && recipes.length > 0
+    ? recipes.slice(0, 5)
+    : [{
+        title: 'Thai Garlic Chicken Stir-Fry',
+        emoji: '🍗',
+        usedIngredients: ['Chicken breast', 'Garlic'],
+        calories: 460,
+        protein: 38,
+        costThb: 45,
+        time: '15m',
+        allIngredients: ['200g chicken breast', '2 cloves garlic', '1 tbsp soy sauce', '1 tbsp cooking oil', '1 cup steamed rice'],
+        missingItems: ['1 tbsp soy sauce', '1 tbsp cooking oil', '1 cup steamed rice'],
+        steps: ['Slice chicken and mince garlic.', 'Stir-fry over medium-high heat for 8 minutes.', 'Season with soy sauce and serve hot over rice!'],
+      }];
 
   const cardThemes = [
     { headerBg: '#ECFDF5', tagColor: '#059669', titleColor: '#064E3B', barTrack: '#A7F3D0', barFill: '#10B981', btnColor: '#10B981' },
     { headerBg: '#EFF6FF', tagColor: '#2563EB', titleColor: '#1E3A8A', barTrack: '#BFDBFE', barFill: '#3B82F6', btnColor: '#2563EB' },
     { headerBg: '#FFF7ED', tagColor: '#EA580C', titleColor: '#7C2D12', barTrack: '#FED7AA', barFill: '#F97316', btnColor: '#EA580C' },
+    { headerBg: '#F5F3FF', tagColor: '#7C3AED', titleColor: '#4C1D95', barTrack: '#DDD6FE', barFill: '#8B5CF6', btnColor: '#7C3AED' },
+    { headerBg: '#FFF1F2', tagColor: '#E11D48', titleColor: '#881337', barTrack: '#FECDD3', barFill: '#F43F5E', btnColor: '#E11D48' },
   ];
 
   const enriched = safeRecipes.map((recipe) => {
@@ -604,74 +766,241 @@ function buildRecipeCarousel(recipes, session, includeQuickReplies = true, filte
     const recipe = enriched[idx];
     const theme = cardThemes[idx % cardThemes.length];
     const recipeId = `${Date.now()}_${idx}_${Math.floor(Math.random() * 1000)}`;
-    const title = (recipe.title || 'Quick Dish').slice(0, 52);
+    const title = (recipe.title || 'Quick Fridge Dish').slice(0, 52);
     const time = (recipe.time || '15m').replace(/\s*total/i, '');
     const calories = Number(recipe.calories) || 450;
     const protein = Number(recipe.protein) || 32;
     const costThb = Number(recipe.costThb) || 45;
     const { allIngredients, missing, hasMissing, matchPct } = recipe;
 
-    const usedList = Array.isArray(recipe.usedIngredients) && recipe.usedIngredients.length > 0 ? recipe.usedIngredients.slice(0, 3).join(', ') : allIngredients.slice(0, 3).join(', ');
+    const usedList = Array.isArray(recipe.usedIngredients) && recipe.usedIngredients.length > 0
+      ? recipe.usedIngredients.slice(0, 3).join(', ')
+      : allIngredients.slice(0, 3).join(', ') || 'Your fridge ingredients';
+
+    const steps = Array.isArray(recipe.steps) && recipe.steps.length > 0
+      ? recipe.steps
+      : ['Prep your ingredients.', 'Cook over medium heat until done.', 'Season to taste and serve!'];
+
+    recordPantryTrends('', missing);
+
     const sponsor = getContextualSponsor(`${title} ${recipe.mainIngredient || ''}`, filterStyle, usedSponsors);
-    const normalizedRecipe = { ...recipe, id: recipeId, title, time, calories, protein, costThb, allIngredients, missingItems: missing, sponsor };
+    const normalizedRecipe = { ...recipe, id: recipeId, title, time, calories, protein, costThb, macros: `${calories} kcal | ${protein}g P`, allIngredients, missingItems: missing, steps, sponsor };
     recipeStore.set(recipeId, normalizedRecipe);
 
     const topTag = idx === 0 ? t(session, 'bestMatch') : `${t(session, 'option')} #${idx + 1}`;
-    const missingCleanNames = missing.slice(0, 2).map((m) => m.replace(/^[\d./]+\s*(?:tbsp|tsp|cup|cups|g|kg|ml|l|pcs|cloves|bunch)?\s*/i, '').trim()).join(', ');
+    const missingCleanNames = missing
+      .slice(0, 2)
+      .map((m) => m.replace(/^[\d./]+\s*(?:tbsp|tsp|cup|cups|g|kg|ml|l|pcs|cloves|bunch|bottle)?\s*/i, '').trim())
+      .join(', ');
 
     bubbles.push({
-      type: 'bubble', size: 'mega',
+      type: 'bubble',
+      size: 'mega',
       header: {
-        type: 'box', layout: 'vertical', backgroundColor: theme.headerBg, height: '128px', paddingAll: 'lg', justifyContent: 'space-between',
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: theme.headerBg,
+        height: '128px',
+        paddingAll: 'lg',
+        justifyContent: 'space-between',
         contents: [
-          { type: 'box', layout: 'horizontal', alignItems: 'center', contents: [{ type: 'text', text: topTag, color: theme.tagColor, size: 'xs', weight: 'bold', flex: 3 }, { type: 'text', text: `⏱️ ${time}`, color: theme.tagColor, size: 'xs', weight: 'bold', align: 'end', flex: 2 }] },
-          { type: 'text', text: `${recipe.emoji || '🍳'} ${title}`, color: theme.titleColor, size: 'md', weight: 'bold', wrap: true, maxLines: 2 },
           {
-            type: 'box', layout: 'horizontal', alignItems: 'center', spacing: 'sm',
+            type: 'box',
+            layout: 'horizontal',
+            alignItems: 'center',
             contents: [
-              { type: 'box', layout: 'vertical', backgroundColor: theme.barTrack, height: '6px', cornerRadius: 'md', flex: 3, contents: [{ type: 'box', layout: 'vertical', backgroundColor: theme.barFill, height: '6px', width: `${matchPct}%`, cornerRadius: 'md', contents: [] }] },
+              { type: 'text', text: topTag, color: theme.tagColor, size: 'xs', weight: 'bold', flex: 3 },
+              { type: 'text', text: `⏱️ ${time}`, color: theme.tagColor, size: 'xs', weight: 'bold', align: 'end', flex: 2 },
+            ],
+          },
+          {
+            type: 'text',
+            text: `${recipe.emoji || '🍳'} ${title}`,
+            color: theme.titleColor,
+            size: 'md',
+            weight: 'bold',
+            wrap: true,
+            maxLines: 2,
+          },
+          {
+            type: 'box',
+            layout: 'horizontal',
+            alignItems: 'center',
+            spacing: 'sm',
+            contents: [
+              {
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: theme.barTrack,
+                height: '6px',
+                cornerRadius: 'md',
+                flex: 3,
+                contents: [
+                  {
+                    type: 'box',
+                    layout: 'vertical',
+                    backgroundColor: theme.barFill,
+                    height: '6px',
+                    width: `${matchPct}%`,
+                    cornerRadius: 'md',
+                    contents: [],
+                  },
+                ],
+              },
               { type: 'text', text: `${matchPct}% Match`, color: theme.tagColor, size: 'xs', weight: 'bold', align: 'end', flex: 2 },
             ],
           },
         ],
       },
       body: {
-        type: 'box', layout: 'vertical', height: '264px', paddingAll: 'xl', justifyContent: 'space-between',
+        type: 'box',
+        layout: 'vertical',
+        height: '264px',
+        paddingAll: 'xl',
+        justifyContent: 'space-between',
         contents: [
           {
-            type: 'box', layout: 'horizontal', spacing: 'sm',
+            type: 'box',
+            layout: 'horizontal',
+            spacing: 'sm',
             contents: [
-              { type: 'box', layout: 'vertical', backgroundColor: '#F8FAFC', cornerRadius: 'md', paddingAll: 'md', flex: 1, contents: [{ type: 'text', text: `🔥 ${calories}`, size: 'sm', color: '#1E293B', align: 'center', weight: 'bold' }, { type: 'text', text: 'kcal', size: 'xxs', color: '#64748B', align: 'center' }] },
-              { type: 'box', layout: 'vertical', backgroundColor: '#F8FAFC', cornerRadius: 'md', paddingAll: 'md', flex: 1, contents: [{ type: 'text', text: `💪 ${protein}g`, size: 'sm', color: theme.tagColor, align: 'center', weight: 'bold' }, { type: 'text', text: 'protein', size: 'xxs', color: '#64748B', align: 'center' }] },
-              { type: 'box', layout: 'vertical', backgroundColor: '#F8FAFC', cornerRadius: 'md', paddingAll: 'md', flex: 1, contents: [{ type: 'text', text: `💵 ~${costThb}฿`, size: 'sm', color: '#1E293B', align: 'center', weight: 'bold' }, { type: 'text', text: 'cost', size: 'xxs', color: '#64748B', align: 'center' }] },
+              {
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: '#F8FAFC',
+                cornerRadius: 'md',
+                paddingAll: 'md',
+                flex: 1,
+                contents: [
+                  { type: 'text', text: `🔥 ${calories}`, size: 'sm', color: '#1E293B', align: 'center', weight: 'bold' },
+                  { type: 'text', text: 'kcal', size: 'xxs', color: '#64748B', align: 'center' },
+                ],
+              },
+              {
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: '#F8FAFC',
+                cornerRadius: 'md',
+                paddingAll: 'md',
+                flex: 1,
+                contents: [
+                  { type: 'text', text: `💪 ${protein}g`, size: 'sm', color: theme.tagColor, align: 'center', weight: 'bold' },
+                  { type: 'text', text: 'protein', size: 'xxs', color: '#64748B', align: 'center' },
+                ],
+              },
+              {
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: '#F8FAFC',
+                cornerRadius: 'md',
+                paddingAll: 'md',
+                flex: 1,
+                contents: [
+                  { type: 'text', text: `💵 ~${costThb}฿`, size: 'sm', color: '#1E293B', align: 'center', weight: 'bold' },
+                  { type: 'text', text: 'cost', size: 'xxs', color: '#64748B', align: 'center' },
+                ],
+              },
             ],
           },
           {
-            type: 'box', layout: 'vertical', height: '80px', justifyContent: 'center', spacing: 'sm',
+            type: 'box',
+            layout: 'vertical',
+            height: '80px',
+            justifyContent: 'center',
+            spacing: 'sm',
             contents: [
-              { type: 'text', text: `${t(session, 'uses')}: ${usedList}`, size: 'xs', color: '#1F2937', weight: 'bold', wrap: true, maxLines: 2 },
-              { type: 'text', text: hasMissing ? `${t(session, 'need')}: ${missing.length} items (${missingCleanNames})` : t(session, 'readyCook'), size: 'xs', color: hasMissing ? '#DC2626' : '#059669', wrap: true, maxLines: 2 },
+              {
+                type: 'text',
+                text: `${t(session, 'uses')}: ${usedList}`,
+                size: 'xs',
+                color: '#1F2937',
+                weight: 'bold',
+                wrap: true,
+                maxLines: 2,
+              },
+              {
+                type: 'text',
+                text: hasMissing
+                  ? `${t(session, 'need')}: ${missing.length} item${missing.length > 1 ? 's' : ''} (${missingCleanNames}${missing.length > 2 ? '...' : ''})`
+                  : t(session, 'readyCook'),
+                size: 'xs',
+                color: hasMissing ? '#DC2626' : '#059669',
+                wrap: true,
+                maxLines: 2,
+              },
             ],
           },
           {
-            type: 'box', layout: 'horizontal', backgroundColor: '#FFFBEB', cornerRadius: 'md', height: '48px', alignItems: 'center', paddingStart: 'md', paddingEnd: 'md', spacing: 'sm',
-            action: { type: 'postback', label: 'Partner Offer', data: `action=sponsor_click&id=${recipeId}`, displayText: `🏷️ ${sponsor.sponsor} Deal` },
+            type: 'box',
+            layout: 'horizontal',
+            backgroundColor: '#FFFBEB',
+            cornerRadius: 'md',
+            height: '48px',
+            alignItems: 'center',
+            paddingStart: 'md',
+            paddingEnd: 'md',
+            spacing: 'sm',
+            action: {
+              type: 'postback',
+              label: 'Partner Offer',
+              data: `action=sponsor_click&id=${recipeId}`,
+              displayText: `🏷️ ${sponsor.sponsor} Deal`,
+            },
             contents: [
-              { type: 'text', text: `Ad • ${sponsor.tagline}`, size: 'xs', color: '#B45309', weight: 'bold', wrap: true, flex: 1 },
-              { type: 'text', text: '↗', size: 'sm', color: '#D97706', weight: 'bold', flex: 0 },
+              {
+                type: 'text',
+                text: `Ad • ${sponsor.tagline}`,
+                size: 'xs',
+                color: '#B45309',
+                weight: 'bold',
+                wrap: true,
+                flex: 1,
+              },
+              {
+                type: 'text',
+                text: '↗',
+                size: 'sm',
+                color: '#D97706',
+                weight: 'bold',
+                flex: 0,
+              },
             ],
           },
         ],
       },
       footer: {
-        type: 'box', layout: 'vertical', spacing: 'sm', paddingAll: 'lg', paddingTop: 'none',
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        paddingAll: 'lg',
+        paddingTop: 'none',
         contents: [
-          { type: 'button', style: 'primary', color: theme.btnColor, height: 'sm', action: { type: 'postback', label: t(session, 'cookBtn'), data: `action=cook&id=${recipeId}&step=0`, displayText: `Start cooking ${title}`.slice(0, 300) } },
           {
-            type: 'box', layout: 'horizontal', spacing: 'sm',
+            type: 'button',
+            style: 'primary',
+            color: theme.btnColor,
+            height: 'sm',
+            action: { type: 'postback', label: t(session, 'cookBtn'), data: `action=cook&id=${recipeId}&step=0`, displayText: `Start cooking ${title}`.slice(0, 300) },
+          },
+          {
+            type: 'box',
+            layout: 'horizontal',
+            spacing: 'sm',
             contents: [
-              { type: 'button', style: 'secondary', height: 'sm', flex: 1, action: { type: 'postback', label: hasMissing ? `${t(session, 'buyBtn')} (${missing.length})` : `${t(session, 'readyBtn')} (0)`, data: `action=missing&id=${recipeId}`, displayText: `Order missing items for ${title}`.slice(0, 300) } },
-              { type: 'button', style: 'secondary', height: 'sm', flex: 1, action: { type: 'postback', label: t(session, 'saveBtn'), data: `action=save&id=${recipeId}`, displayText: `Save ${title}`.slice(0, 300) } },
+              {
+                type: 'button',
+                style: 'secondary',
+                height: 'sm',
+                flex: 1,
+                action: { type: 'postback', label: hasMissing ? `${t(session, 'buyBtn')} (${missing.length})` : `${t(session, 'readyBtn')} (0)`, data: `action=missing&id=${recipeId}`, displayText: `Order missing items for ${title}`.slice(0, 300) },
+              },
+              {
+                type: 'button',
+                style: 'secondary',
+                height: 'sm',
+                flex: 1,
+                action: { type: 'postback', label: t(session, 'saveBtn'), data: `action=save&id=${recipeId}`, displayText: `Save ${title}`.slice(0, 300) },
+              },
             ],
           },
         ],
@@ -679,78 +1008,133 @@ function buildRecipeCarousel(recipes, session, includeQuickReplies = true, filte
     });
   }
 
-  const msg = { type: 'flex', altText: 'Recipe Suggestions 🍳', contents: { type: 'carousel', contents: bubbles } };
+  const msg = { type: 'flex', altText: 'FridgeFriend Recipe Suggestions 🍳', contents: { type: 'carousel', contents: bubbles } };
   if (includeQuickReplies) msg.quickReply = getFilterQuickReplies(session);
   return msg;
 }
 
 function buildMealPlanCarousel(planData, session) {
   const planId = `${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-  const days = Array.isArray(planData?.days) && planData.days.length > 0 ? planData.days.slice(0, 3) : [{ focus: 'Balanced Prep Day', lunch: 'Garlic Chicken Bowl', lunchMacros: '480 kcal | 40g P', dinner: 'Stir-Fry Veggies', dinnerMacros: '420 kcal | 28g P', ingredientsNeeded: ['chicken', 'rice'], wasteTip: 'Use extra rice tomorrow.' }];
-  
+  const days = Array.isArray(planData?.days) && planData.days.length > 0
+    ? planData.days.slice(0, 3)
+    : [{ focus: 'Balanced Prep Day', lunch: 'Garlic Chicken Rice Bowl', lunchMacros: '480 kcal | 40g P', dinner: 'Stir-Fried Egg & Greens', dinnerMacros: '420 kcal | 28g P', ingredientsNeeded: ['500g chicken breast', '6 eggs', 'garlic', 'soy sauce', 'rice'], wasteTip: 'Cook extra rice for Day 2 fried rice.' }];
+
   const combinedItems = new Set();
-  for (const item of planData?.consolidatedShoppingList || []) if (item) combinedItems.add(item);
-  for (const d of days) for (const ing of d.ingredientsNeeded || []) if (ing) combinedItems.add(ing);
-  const finalShoppingList = Array.from(combinedItems);
+  for (const item of planData?.consolidatedShoppingList || []) if (item && typeof item === 'string') combinedItems.add(item.trim());
+  for (const d of days) for (const ing of d.ingredientsNeeded || []) if (ing && typeof ing === 'string') combinedItems.add(ing.trim());
+  const finalShoppingList = combinedItems.size > 0 ? Array.from(combinedItems) : ['Chicken breast (500g)', 'Eggs (6 pcs)', 'Garlic & shallots', 'Rice & soy sauce'];
   mealPlanStore.set(planId, finalShoppingList);
 
   const dayBubbles = days.map((d, idx) => ({
-    type: 'bubble', size: 'mega',
-    header: { type: 'box', layout: 'vertical', backgroundColor: '#ECFDF5', paddingAll: 'md', contents: [{ type: 'text', text: `🗓️ DAY ${idx + 1} PLAN`, color: '#059669', size: 'xs', weight: 'bold' }, { type: 'text', text: d.focus, color: '#064E3B', size: 'md', weight: 'bold', wrap: true }] },
-    body: {
-      type: 'box', layout: 'vertical', spacing: 'md',
+    type: 'bubble',
+    size: 'mega',
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: '#ECFDF5',
+      paddingAll: 'md',
       contents: [
-        { type: 'box', layout: 'vertical', spacing: 'xs', contents: [{ type: 'text', text: '☀️ LUNCH', size: 'xs', weight: 'bold', color: '#10B981' }, { type: 'text', text: d.lunch, size: 'sm', weight: 'bold', wrap: true }, { type: 'text', text: d.lunchMacros, size: 'xs', color: '#6B7280' }] },
-        { type: 'separator' },
-        { type: 'box', layout: 'vertical', spacing: 'xs', contents: [{ type: 'text', text: '🌙 DINNER', size: 'xs', weight: 'bold', color: '#059669' }, { type: 'text', text: d.dinner, size: 'sm', weight: 'bold', wrap: true }, { type: 'text', text: d.dinnerMacros, size: 'xs', color: '#6B7280' }] },
-        { type: 'separator' },
-        { type: 'text', text: `♻️ Tip: ${d.wasteTip}`, size: 'xs', color: '#047857', wrap: true },
+        { type: 'text', text: `🗓️ DAY ${idx + 1} MEAL PREP`, color: '#059669', size: 'xs', weight: 'bold' },
+        { type: 'text', text: d.focus || 'Zero-Waste Balanced Day', color: '#064E3B', size: 'md', weight: 'bold', wrap: true },
       ],
     },
-    footer: { type: 'box', layout: 'vertical', contents: [{ type: 'button', style: 'primary', color: '#10B981', height: 'sm', action: { type: 'postback', label: `🛒 Buy Groceries (${finalShoppingList.length})`, data: `action=plan_list&id=${planId}`, displayText: 'Get shopping list 🛒' } }] },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      spacing: 'md',
+      contents: [
+        { type: 'box', layout: 'vertical', spacing: 'xs', contents: [{ type: 'text', text: '☀️ LUNCH', size: 'xs', weight: 'bold', color: '#10B981' }, { type: 'text', text: d.lunch || 'Chicken Garlic Bowl', size: 'sm', weight: 'bold', wrap: true }, { type: 'text', text: d.lunchMacros || '480 kcal | 38g P', size: 'xs', color: '#6B7280' }] },
+        { type: 'separator' },
+        { type: 'box', layout: 'vertical', spacing: 'xs', contents: [{ type: 'text', text: '🌙 DINNER', size: 'xs', weight: 'bold', color: '#059669' }, { type: 'text', text: d.dinner || 'Stir-Fried Veggies & Protein', size: 'sm', weight: 'bold', wrap: true }, { type: 'text', text: d.dinnerMacros || '510 kcal | 42g P', size: 'xs', color: '#6B7280' }] },
+        { type: 'separator' },
+        { type: 'text', text: `♻️ Zero-Waste Tip: ${d.wasteTip || 'Uses fresh perishables first.'}`, size: 'xs', color: '#047857', wrap: true },
+      ],
+    },
+    footer: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [{ type: 'button', style: 'primary', color: '#10B981', height: 'sm', action: { type: 'postback', label: `🛒 Buy 3-Day Groceries (${finalShoppingList.length})`, data: `action=plan_list&id=${planId}`, displayText: 'Show 3-Day Consolidated Shopping List 🛒' } }],
+    },
   }));
 
-  return { type: 'flex', altText: '3-Day Meal Plan', contents: { type: 'carousel', contents: dayBubbles }, quickReply: getFilterQuickReplies(session) };
+  return { type: 'flex', altText: '🗓️ 3-Day Zero-Waste Meal Plan', contents: { type: 'carousel', contents: dayBubbles }, quickReply: getFilterQuickReplies(session) };
 }
 
+// --- Enhanced Cook Mode Card ---
 function buildSingleStepCard(recipe, stepIndex, session) {
   const total = recipe.steps.length;
-  const currentStep = recipe.steps[stepIndex] || 'Enjoy!';
+  const currentStep = recipe.steps[stepIndex] || 'Enjoy your meal!';
   const isLast = stepIndex >= total - 1;
-  const timeMatch = currentStep.match(/(\d+)\s*(?:minute|minutes|min|m)\b/i);
-  const detectedMinutes = timeMatch ? parseInt(timeMatch[1], 10) : null;
+  const timeMatch = currentStep.match(/(\d+)\s*(?:minute|minutes|min|mins|m|นาที|မိနစ်)\b/i);
+  const detectedMinutes = timeMatch ? Math.min(parseInt(timeMatch[1], 10), 60) : null;
   const footerButtons = [];
 
-  if (detectedMinutes) {
-    footerButtons.push({ type: 'button', style: 'secondary', height: 'sm', action: { type: 'postback', label: `⏱️ Set ${detectedMinutes}m Timer`, data: `action=timer&mins=${detectedMinutes}&title=${encodeURIComponent(recipe.title)}`, displayText: `Set timer` } });
+  if (detectedMinutes && detectedMinutes > 0) {
+    footerButtons.push({ type: 'button', style: 'secondary', height: 'sm', action: { type: 'postback', label: `⏱️ Set ${detectedMinutes}m Timer`, data: `action=timer&mins=${detectedMinutes}&title=${encodeURIComponent(recipe.title)}`, displayText: `Set ${detectedMinutes}-minute timer ⏱️` } });
   }
   if (!isLast) {
-    footerButtons.push({ type: 'button', style: 'primary', color: '#10B981', height: 'sm', action: { type: 'postback', label: `Next Step (${stepIndex + 2}/${total}) ➡️`, data: `action=cook&id=${recipe.id}&step=${stepIndex + 1}`, displayText: `Next step` } });
+    footerButtons.push({ type: 'button', style: 'primary', color: '#10B981', height: 'sm', action: { type: 'postback', label: `Next Step (${stepIndex + 2}/${total}) ➡️`, data: `action=cook&id=${recipe.id}&step=${stepIndex + 1}`, displayText: `Step ${stepIndex + 2}` } });
   } else {
-    footerButtons.push({ type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'postback', label: `${t(session, 'cookedBtn')} (+${recipe.protein}g P)`, data: `action=log_meal&id=${recipe.id}`, displayText: `Logged meal!` } });
+    footerButtons.push({ type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'postback', label: `${t(session, 'cookedBtn')} (+${recipe.protein}g Protein)`, data: `action=log_meal&id=${recipe.id}`, displayText: `Logged ${recipe.title}! 💪` } });
   }
 
-  const prepCheck = stepIndex === 0 && Array.isArray(recipe.allIngredients) && recipe.allIngredients.length > 0 ? [
-    { type: 'box', layout: 'vertical', backgroundColor: '#F8FAFC', cornerRadius: 'md', paddingAll: 'sm', spacing: 'xs', contents: [{ type: 'text', text: t(session, 'prepCheck'), size: 'xxs', weight: 'bold', color: '#475569' }, { type: 'text', text: recipe.allIngredients.join(' • '), size: 'xxs', color: '#334155', wrap: true }] }
-  ] : [];
+  const prepCheck = stepIndex === 0 && Array.isArray(recipe.allIngredients) && recipe.allIngredients.length > 0
+    ? [
+        {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: '#F8FAFC',
+          cornerRadius: 'md',
+          paddingAll: 'sm',
+          spacing: 'xs',
+          contents: [
+            { type: 'text', text: t(session, 'prepCheck'), size: 'xxs', weight: 'bold', color: '#475569' },
+            { type: 'text', text: recipe.allIngredients.join(' • '), size: 'xxs', color: '#334155', wrap: true },
+          ],
+        },
+      ]
+    : [];
 
   return {
-    type: 'flex', altText: `Step ${stepIndex + 1}`,
+    type: 'flex',
+    altText: `Step ${stepIndex + 1}/${total}: ${recipe.title}`,
     contents: {
       type: 'bubble',
-      body: { type: 'box', layout: 'vertical', spacing: 'md', contents: [{ type: 'text', text: `${t(session, 'stepTitle')} ${stepIndex + 1} ${t(session, 'of')} ${total}`, weight: 'bold', size: 'xs', color: '#10B981' }, { type: 'text', text: `${recipe.emoji || '🍳'} ${recipe.title}`, weight: 'bold', size: 'md', wrap: true }, ...prepCheck, { type: 'separator' }, { type: 'text', text: currentStep, size: 'md', color: '#1F2937', wrap: true }] },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'md',
+        contents: [
+          { type: 'text', text: `${t(session, 'stepTitle')} ${stepIndex + 1} ${t(session, 'of')} ${total}`, weight: 'bold', size: 'xs', color: '#10B981' },
+          { type: 'text', text: `${recipe.emoji || '🍳'} ${recipe.title}`, weight: 'bold', size: 'md', wrap: true },
+          ...prepCheck,
+          { type: 'separator' },
+          { type: 'text', text: currentStep, size: 'md', color: '#1F2937', wrap: true },
+        ],
+      },
       footer: { type: 'box', layout: 'vertical', spacing: 'xs', contents: footerButtons },
     },
   };
 }
 
-function buildReceiptCard(items, batchId) {
+function buildReceiptCard(items, receiptBatchId) {
   return {
-    type: 'flex', altText: '🧾 Receipt Scanned',
+    type: 'flex',
+    altText: '🧾 Receipt Scanned!',
     contents: {
       type: 'bubble',
-      body: { type: 'box', layout: 'vertical', spacing: 'sm', contents: [{ type: 'text', text: '🧾 Grocery Receipt Scanned', weight: 'bold', size: 'lg', color: '#10B981' }, { type: 'text', text: `Found ${items.length} items:`, size: 'xs', color: '#6B7280' }, { type: 'separator' }, ...items.map(i => ({ type: 'text', text: `• ${i}`, size: 'sm', color: '#333333', wrap: true }))]} ,
-      footer: { type: 'box', layout: 'vertical', contents: [{ type: 'button', style: 'primary', color: '#10B981', height: 'sm', action: { type: 'postback', label: '🍳 Cook With These', data: `action=receipt_cook&batch=${batchId}`, displayText: 'Cook with receipt items' } }] },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        contents: [
+          { type: 'text', text: '🧾 Grocery Receipt Scanned', weight: 'bold', size: 'lg', color: '#10B981' },
+          { type: 'text', text: `Found ${items.length} food item(s):`, size: 'xs', color: '#6B7280' },
+          { type: 'separator' },
+          ...items.map((item) => ({ type: 'box', layout: 'horizontal', spacing: 'sm', margin: 'xs', contents: [{ type: 'text', text: '🥬', size: 'sm', flex: 0 }, { type: 'text', text: item, size: 'sm', color: '#333333', wrap: true, flex: 1 }] })),
+        ],
+      },
+      footer: { type: 'box', layout: 'vertical', spacing: 'xs', contents: [{ type: 'button', style: 'primary', color: '#10B981', height: 'sm', action: { type: 'postback', label: '🍳 Cook With These Items', data: `action=receipt_cook&batch=${receiptBatchId}`, displayText: 'Cook with scanned receipt items 🍳' } }] },
     },
   };
 }
@@ -763,25 +1147,61 @@ function buildStatsCard(session) {
   const calPct = Math.min(Math.round((log.calories / calGoal) * 100), 100);
   const proPct = Math.min(Math.round((log.protein / proGoal) * 100), 100);
 
-  const mealLines = log.meals.length > 0 ? log.meals.map(m => ({ type: 'text', text: `• ${m.title} (${m.calories} kcal, ${m.protein}g P)`, size: 'xs', color: '#4B5563', wrap: true })) : [{ type: 'text', text: 'No meals logged today yet!', size: 'xs', color: '#9CA3AF' }];
+  const gymSection = session.gymPartner
+    ? [{
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#EFF6FF',
+        cornerRadius: 'md',
+        paddingAll: 'xs',
+        contents: [{ type: 'text', text: `🏋️ Partner: ${session.gymPartner}`, size: 'xs', weight: 'bold', color: '#1D4ED8', align: 'center', wrap: true }],
+      }]
+    : [];
+
+  const mealLines = log.meals.length > 0
+    ? log.meals.map((m) => ({ type: 'text', text: `• ${m.title} (${m.calories} kcal, ${m.protein}g P)`, size: 'xs', color: '#4B5563', wrap: true }))
+    : [{ type: 'text', text: 'No meals cooked yet today!', size: 'xs', color: '#9CA3AF', wrap: true }];
 
   return {
-    type: 'flex', altText: t(session, 'dailyMacros'),
+    type: 'flex',
+    altText: t(session, 'dailyMacros'),
     contents: {
       type: 'bubble',
       body: {
-        type: 'box', layout: 'vertical', spacing: 'md',
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'md',
         contents: [
           { type: 'text', text: `${t(session, 'dailyMacros')} (${today})`, weight: 'bold', size: 'lg', color: '#111827' },
-          { type: 'text', text: `${t(session, 'target')}: ${calGoal} kcal | ${proGoal}g P`, size: 'xs', color: '#059669', weight: 'bold' },
-          { type: 'box', layout: 'vertical', spacing: 'xs', contents: [{ type: 'text', text: `💪 Protein: ${log.protein}g / ${proGoal}g (${proPct}%)`, size: 'sm', weight: 'bold', color: '#047857' }, { type: 'box', layout: 'vertical', backgroundColor: '#E5E7EB', height: '8px', cornerRadius: 'md', contents: [{ type: 'box', layout: 'vertical', backgroundColor: '#10B981', height: '8px', width: `${Math.max(proPct, 4)}%`, cornerRadius: 'md', contents: [] }] }] },
-          { type: 'box', layout: 'vertical', spacing: 'xs', contents: [{ type: 'text', text: `🔥 Calories: ${log.calories} / ${calGoal} kcal (${calPct}%)`, size: 'sm', weight: 'bold', color: '#B45309' }, { type: 'box', layout: 'vertical', backgroundColor: '#E5E7EB', height: '8px', cornerRadius: 'md', contents: [{ type: 'box', layout: 'vertical', backgroundColor: '#F59E0B', height: '8px', width: `${Math.max(calPct, 4)}%`, cornerRadius: 'md', contents: [] }] }] },
+          ...gymSection,
+          { type: 'text', text: `${t(session, 'target')}: ${session.goals.label || `${calGoal} kcal | ${proGoal}g P`}`, size: 'xs', color: '#059669', weight: 'bold' },
+          {
+            type: 'box', layout: 'vertical', spacing: 'xs',
+            contents: [
+              { type: 'text', text: `💪 ${t(session, 'protein')}: ${log.protein}g / ${proGoal}g (${proPct}%)`, size: 'sm', weight: 'bold', color: '#047857' },
+              { type: 'box', layout: 'vertical', backgroundColor: '#E5E7EB', height: '8px', cornerRadius: 'md', contents: [{ type: 'box', layout: 'vertical', backgroundColor: '#10B981', height: '8px', width: `${Math.max(proPct, 4)}%`, cornerRadius: 'md', contents: [] }] },
+            ],
+          },
+          {
+            type: 'box', layout: 'vertical', spacing: 'xs',
+            contents: [
+              { type: 'text', text: `🔥 ${t(session, 'calories')}: ${log.calories} / ${calGoal} kcal (${calPct}%)`, size: 'sm', weight: 'bold', color: '#B45309' },
+              { type: 'box', layout: 'vertical', backgroundColor: '#E5E7EB', height: '8px', cornerRadius: 'md', contents: [{ type: 'box', layout: 'vertical', backgroundColor: '#F59E0B', height: '8px', width: `${Math.max(calPct, 4)}%`, cornerRadius: 'md', contents: [] }] },
+            ],
+          },
           { type: 'separator' },
           { type: 'text', text: t(session, 'mealsLogged'), size: 'xs', weight: 'bold', color: '#374151' },
           ...mealLines,
         ],
       },
-      footer: { type: 'box', layout: 'vertical', contents: [{ type: 'button', style: 'secondary', height: 'sm', action: { type: 'postback', label: '⚙️ Customize Goals', data: 'action=goal_menu', displayText: 'Customize targets' } }] },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'xs',
+        contents: [
+          { type: 'button', style: 'secondary', height: 'sm', action: { type: 'postback', label: '⚙️ Customize Targets', data: 'action=goal_menu', displayText: '⚙️ Customize Daily Goals' } },
+        ],
+      },
     },
     quickReply: getFilterQuickReplies(session),
   };
@@ -789,16 +1209,23 @@ function buildStatsCard(session) {
 
 function buildGoalPickerCard(session) {
   return {
-    type: 'flex', altText: 'Set Targets',
+    type: 'flex',
+    altText: '⚙️ Set Daily Targets',
     contents: {
       type: 'bubble',
-      body: { type: 'box', layout: 'vertical', spacing: 'sm', contents: [{ type: 'text', text: '⚙️ Set Your Daily Targets', weight: 'bold', size: 'lg' }, { type: 'text', text: `Current: ${session.goals.calories} kcal | ${session.goals.protein}g P`, size: 'xs' }] },
+      body: {
+        type: 'box', layout: 'vertical', spacing: 'sm',
+        contents: [
+          { type: 'text', text: '⚙️ Set Your Daily Targets', weight: 'bold', size: 'lg', color: '#111827' },
+          { type: 'text', text: `Current: ${session.goals.calories} kcal | ${session.goals.protein}g protein`, size: 'xs', color: '#4B5563', wrap: true },
+        ],
+      },
       footer: {
         type: 'box', layout: 'vertical', spacing: 'xs',
         contents: [
-          { type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'postback', label: '💪 Lean Bulk (2500 kcal | 150g P)', data: 'action=set_goal&cal=2500&pro=150&label=Lean+Bulk', displayText: 'Lean Bulk' } },
-          { type: 'button', style: 'primary', color: '#10B981', height: 'sm', action: { type: 'postback', label: '⚖️ Maintain (2000 kcal | 120g P)', data: 'action=set_goal&cal=2000&pro=120&label=Maintain', displayText: 'Maintain' } },
-          { type: 'button', style: 'secondary', height: 'sm', action: { type: 'postback', label: '🥗 Fat Loss (1650 kcal | 135g P)', data: 'action=set_goal&cal=1650&pro=135&label=Fat+Loss+Cut', displayText: 'Fat Loss' } },
+          { type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'postback', label: '💪 Lean Bulk (2500 kcal | 150g P)', data: 'action=set_goal&cal=2500&pro=150&label=Lean+Bulk', displayText: 'Set goal: Lean Bulk' } },
+          { type: 'button', style: 'primary', color: '#10B981', height: 'sm', action: { type: 'postback', label: '⚖️ Maintain (2000 kcal | 120g P)', data: 'action=set_goal&cal=2000&pro=120&label=Maintain', displayText: 'Set goal: Maintain' } },
+          { type: 'button', style: 'secondary', height: 'sm', action: { type: 'postback', label: '🥗 Fat Loss / Cut (1650 kcal | 135g P)', data: 'action=set_goal&cal=1650&pro=135&label=Fat+Loss+Cut', displayText: 'Set goal: Fat Loss / Cut' } },
         ],
       },
     },
@@ -806,44 +1233,97 @@ function buildGoalPickerCard(session) {
 }
 
 function buildShoppingListCard(title, items, allIngredients = []) {
-  const missingRows = items.map((item) => ({ type: 'box', layout: 'horizontal', spacing: 'sm', margin: 'sm', contents: [{ type: 'text', text: '⬜', size: 'sm', flex: 0 }, { type: 'text', text: item, size: 'sm', color: '#DC2626', weight: 'bold', wrap: true, flex: 1 }] }));
+  const missingRows = items.map((item) => ({
+    type: 'box', layout: 'horizontal', spacing: 'sm', margin: 'sm',
+    contents: [{ type: 'text', text: '⬜', size: 'sm', flex: 0 }, { type: 'text', text: item, size: 'sm', color: '#DC2626', weight: 'bold', wrap: true, flex: 1 }],
+  }));
+
+  const fullListSection = Array.isArray(allIngredients) && allIngredients.length > 0
+    ? [
+        { type: 'separator', margin: 'md' },
+        { type: 'text', text: '📋 Full Recipe Ingredients:', size: 'xs', weight: 'bold', color: '#374151', margin: 'md' },
+        ...allIngredients.map((ing) => ({ type: 'text', text: `• ${ing}`, size: 'xs', color: '#4B5563', wrap: true })),
+      ]
+    : [];
+
+  const firstCleanItem = (items[0] || 'groceries').replace(/^[\d./]+\s*(?:tbsp|tsp|cup|cups|g|kg|ml|l|pcs|cloves|bunch|bottle)?\s*/i, '').trim();
+  const query = encodeURIComponent(firstCleanItem || 'chicken');
+
   return {
-    type: 'flex', altText: `Shopping List`,
+    type: 'flex',
+    altText: `Shopping List: ${title}`,
     contents: {
       type: 'bubble',
-      body: { type: 'box', layout: 'vertical', contents: [{ type: 'text', text: `🛒 Missing Ingredients (${items.length})`, weight: 'bold', size: 'lg', color: '#10B981' }, { type: 'text', text: title, size: 'xs', color: '#6B7280', margin: 'xs', wrap: true }, { type: 'separator', margin: 'md' }, ...missingRows] },
-      footer: { type: 'box', layout: 'vertical', spacing: 'xs', contents: [{ type: 'button', style: 'primary', color: '#00B14F', height: 'sm', action: { type: 'uri', label: '🛵 Order via GrabMart', uri: 'https://food.grab.com/th/en/' } }] },
+      body: {
+        type: 'box', layout: 'vertical',
+        contents: [
+          { type: 'text', text: `🛒 Missing Ingredients (${/^none/i.test(items[0] || '') ? 0 : items.length})`, weight: 'bold', size: 'lg', color: '#10B981' },
+          { type: 'text', text: title, size: 'xs', color: '#6B7280', margin: 'xs', wrap: true },
+          { type: 'separator', margin: 'md' },
+          ...missingRows,
+          ...fullListSection,
+        ],
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'xs',
+        contents: [
+          { type: 'text', text: '⚡ Instant Partner Grocery Delivery (Affiliate)', size: 'xxs', color: '#6B7280', align: 'center' },
+          { type: 'button', style: 'primary', color: '#00B14F', height: 'sm', action: { type: 'uri', label: '🛵 Order via GrabMart Partner', uri: 'https://food.grab.com/th/en/' } },
+          { type: 'button', style: 'secondary', height: 'sm', action: { type: 'uri', label: '🛍️ Buy Ingredients on Tops Online', uri: `https://www.tops.co.th/en/search/${query}` } },
+        ],
+      },
     },
   };
 }
 
-// --- Gemini AI Generators ---
+// --- Gemini AI Generators (Multi-Language Supported) ---
 async function generateRecipesForSession(session, filterStyle = null) {
+  const styleInstructions = {
+    budget_60: 'Focus strictly on STUDENT BUDGET-FRIENDLY meals costing UNDER 60 THB per serving.',
+    high_protein: 'Focus strictly on HIGH-PROTEIN fitness meals (40g+ protein).',
+    quick_15m: 'Focus strictly on ULTRA-FAST meals ready in 15 MINUTES OR LESS.',
+    thai_style: 'Focus strictly on authentic THAI-STYLE dishes.',
+  };
+  const extraRule = filterStyle && styleInstructions[filterStyle] ? styleInstructions[filterStyle] : '';
+
   const langInstructions = {
-    th: 'Write ALL output fields strictly in natural THAI (ภาษาไทย).',
-    en: 'Write ALL output fields strictly in ENGLISH.',
-    my: 'Write ALL output fields strictly in natural BURMESE (မြန်မာဘာသာ).',
-    auto: 'Detect input language and write output in that same language. Default to English if image without text.',
+    th: 'Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in natural THAI (ภาษาไทย).',
+    en: 'Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in ENGLISH.',
+    my: 'Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in natural BURMESE (မြန်မာဘာသာ).',
+    auto: 'Detect the language of the user\'s input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English) and write ALL output fields in THAT EXACT SAME LANGUAGE.',
   };
   const chosenLangRule = langInstructions[session.lang] || langInstructions.auto;
 
-  const schemaPrompt = `${chosenLangRule}
-Return ONLY valid JSON (no markdown) matching:
+  const schemaPrompt = `${extraRule}
+${chosenLangRule}
+- ALWAYS keep "mainIngredient" in lowercase ENGLISH.
+- Compare EVERY ingredient required against what the user provided, and list missing items in "missingItems".
+
+Return ONLY valid JSON (no markdown) matching this exact format:
 {
   "recipes": [
     {
-      "title": "Dish Name", "emoji": "🍗", "mainIngredient": "chicken",
-      "usedIngredients": ["200g chicken"], "calories": 520, "protein": 44, "costThb": 48, "time": "15m",
-      "allIngredients": ["200g chicken", "garlic", "soy sauce"], "missingItems": ["soy sauce"],
-      "steps": ["Step 1", "Step 2"]
+      "title": "Dish Name",
+      "emoji": "🍗",
+      "mainIngredient": "chicken",
+      "usedIngredients": ["200g chicken breast"],
+      "calories": 520,
+      "protein": 44,
+      "costThb": 48,
+      "time": "15m",
+      "allIngredients": ["200g chicken breast", "2 cloves garlic"],
+      "missingItems": ["1 tbsp soy sauce"],
+      "steps": ["Step 1 instruction", "Step 2 instruction"]
     }
   ]
 }
-Suggest 3 distinct practical recipes.`;
+Suggest 3 distinct, practical recipes.`;
 
   const geminiContents = session.lastPromptType === 'image' && session.lastImageBase64
-    ? [{ inlineData: { mimeType: 'image/jpeg', data: session.lastImageBase64 } }, `Suggest 3 recipes using the ingredients in this photo. ${schemaPrompt}`]
-    : `User ingredients: "${session.lastText}". ${schemaPrompt}`;
+    ? [{ inlineData: { mimeType: 'image/jpeg', data: session.lastImageBase64 } }, `You are FridgeFriend, an AI chef. Identify ingredients in this photo and suggest 3 recipes. ${schemaPrompt}`]
+    : `You are FridgeFriend, an AI chef. User ingredients: "${session.lastText}". ${schemaPrompt}`;
 
   const response = await generateWithFallback(geminiContents, { responseMimeType: 'application/json' });
   const parsed = JSON.parse(response.text.replace(/```json|```/g, '').trim());
@@ -852,14 +1332,38 @@ Suggest 3 distinct practical recipes.`;
 }
 
 async function generateMealPlanForSession(session) {
-  const planPrompt = `Create a smart 3-Day Zero-Waste Meal Plan (6 meals total). Return ONLY valid JSON:
+  const langInstructions = {
+    th: 'Write meal plan in natural THAI (ภาษาไทย).',
+    en: 'Write meal plan in ENGLISH.',
+    my: 'Write meal plan in natural BURMESE (မြန်မာဘာသာ).',
+    auto: 'Match user language or default to English.',
+  };
+
+  const planPrompt = `Create a smart 3-Day Zero-Waste Meal Plan (6 meals total). ${langInstructions[session.lang] || ''}
+Return ONLY valid JSON (no markdown) matching this exact format:
 {
-  "days": [{"focus": "Meat First", "lunch": "Dish", "lunchMacros": "480 kcal | 40g P", "dinner": "Dish", "dinnerMacros": "520 kcal | 42g P", "ingredientsNeeded": ["chicken"], "wasteTip": "Tip"}],
-  "consolidatedShoppingList": ["chicken", "eggs"]
+  "days": [
+    {
+      "focus": "Use Fresh Meat First",
+      "lunch": "Dish Name",
+      "lunchMacros": "480 kcal | 40g P",
+      "dinner": "Dish Name",
+      "dinnerMacros": "520 kcal | 42g P",
+      "ingredientsNeeded": ["300g chicken breast", "garlic"],
+      "wasteTip": "Tip on leftovers"
+    }
+  ],
+  "consolidatedShoppingList": ["600g chicken breast", "6 eggs"]
 }`;
-  const response = await generateWithFallback(`Based on: "${session.lastText || 'chicken, eggs, rice'}". ${planPrompt}`, { responseMimeType: 'application/json' });
+
+  const geminiContents = session.lastPromptType === 'image' && session.lastImageBase64
+    ? [{ inlineData: { mimeType: 'image/jpeg', data: session.lastImageBase64 } }, `Create a 3-day meal plan from this photo. ${planPrompt}`]
+    : `Create a 3-day meal plan based on: "${session.lastText || 'chicken breast, eggs, garlic, rice'}". ${planPrompt}`;
+
+  const response = await generateWithFallback(geminiContents, { responseMimeType: 'application/json' });
   const parsed = JSON.parse(response.text.replace(/```json|```/g, '').trim());
-  return buildMealPlanCarousel(Array.isArray(parsed) ? { days: parsed } : parsed, session);
+  const normalizedPlan = Array.isArray(parsed) ? { days: parsed } : parsed;
+  return buildMealPlanCarousel(normalizedPlan, session);
 }
 
 // --- Webhook Event Handler ---
@@ -879,22 +1383,36 @@ async function handleEvent(event) {
       return messagingClient.replyMessage({
         replyToken: event.replyToken,
         messages: [{
-          type: 'text', text: '🌐 Choose your preferred language / เลือกภาษา / ဘာသာစကားရွေးပါ:',
-          quickReply: { items: [
-            { type: 'action', action: { type: 'postback', label: '🇲🇲 မြန်မာ', data: 'action=set_lang&lang=my', displayText: 'မြန်မာဘာသာ' } },
-            { type: 'action', action: { type: 'postback', label: '🇹🇭 ภาษาไทย', data: 'action=set_lang&lang=th', displayText: 'ภาษาไทย' } },
-            { type: 'action', action: { type: 'postback', label: '🇬🇧 English', data: 'action=set_lang&lang=en', displayText: 'English' } },
-            { type: 'action', action: { type: 'postback', label: '✨ Auto', data: 'action=set_lang&lang=auto', displayText: 'Auto-detect' } },
-          ] },
+          type: 'text',
+          text: '🌐 Choose your preferred language / ရွေးချယ်ပါ / เลือกภาษา:',
+          quickReply: {
+            items: [
+              { type: 'action', action: { type: 'postback', label: '🇲🇲 မြန်မာ (Burmese)', data: 'action=set_lang&lang=my', displayText: '🇲🇲 မြန်မာဘာသာသို့ ပြောင်းမည်' } },
+              { type: 'action', action: { type: 'postback', label: '🇹🇭 ภาษาไทย (Thai)', data: 'action=set_lang&lang=th', displayText: '🇹🇭 เปลี่ยนเป็นภาษาไทย' } },
+              { type: 'action', action: { type: 'postback', label: '🇬🇧 English', data: 'action=set_lang&lang=en', displayText: '🇬🇧 Switch to English' } },
+              { type: 'action', action: { type: 'postback', label: '✨ Auto-Detect', data: 'action=set_lang&lang=auto', displayText: '✨ Auto-Detect Language' } },
+            ],
+          },
         }],
       });
     }
 
     if (action === 'set_lang') {
-      session.lang = params.get('lang') || 'auto';
+      const lang = params.get('lang') || 'auto';
+      session.lang = lang;
       saveDB();
-      const msgs = { th: '✅ เปลี่ยนเป็นภาษาไทยเรียบร้อย!', en: '✅ Language set to English!', my: '✅ မြန်မာဘာသာသို့ ပြောင်းပြီးပါပြီ!', auto: '✅ Auto-detect enabled!' };
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: msgs[session.lang] || msgs.auto }] });
+      const confirmMap = {
+        th: '✅ ตั้งค่าเป็นภาษาไทยเรียบร้อย! เมนูและปุ่มทั้งหมดเปลี่ยนเป็นไทยแล้ว 🍳',
+        en: '✅ Language set to English! All buttons & menus are now in English 🍳',
+        my: '✅ မြန်မာဘာသာသို့ ပြောင်းလဲပြီးပါပြီ! ခလုတ်များနှင့် မီနူးများအားလုံး မြန်မာလိုဖြစ်သွားပါပြီ 🍳',
+        auto: '✅ Auto-detect enabled! 🌐',
+      };
+      if (session.lastPromptType) {
+        if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
+        const carousel = await generateRecipesForSession(session);
+        return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: confirmMap[lang] }, carousel] });
+      }
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: confirmMap[lang] }] });
     }
 
     if (action === 'pantry_confirm') {
@@ -920,7 +1438,13 @@ async function handleEvent(event) {
       const sponsor = recipe?.sponsor || getContextualSponsor();
       db.analytics.sponsoredClicks = (db.analytics.sponsoredClicks || 0) + 1;
       saveDB();
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `🏷️ Partner Offer: ${sponsor.sponsor}\nCode: ${sponsor.promoCode}\nLink: ${sponsor.url}` }] });
+      return messagingClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{
+          type: 'text',
+          text: `🏷️ Partner Offer Unlocked!\n\nPartner: ${sponsor.sponsor}\nPromo Code: ${sponsor.promoCode}\nLink: ${sponsor.url}`,
+        }],
+      });
     }
 
     if (action === 'flash_deal') {
@@ -932,8 +1456,19 @@ async function handleEvent(event) {
     if (action === 'cook') {
       const recipe = recipeStore.get(params.get('id'));
       const stepIdx = parseInt(params.get('step') || '0', 10);
-      if (!recipe) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: 'Recipe expired—send ingredients again! 🥦' }] });
+      if (!recipe) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: 'Recipe expired—send your ingredients again! 🥦' }] });
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildSingleStepCard(recipe, stepIdx, session)] });
+    }
+
+    if (action === 'timer') {
+      const mins = parseInt(params.get('mins') || '5', 10);
+      const dishTitle = params.get('title') || 'your dish';
+      setTimeout(() => {
+        if (event.source?.userId) {
+          messagingClient.pushMessage({ to: event.source.userId, messages: [{ type: 'text', text: `⏰ Ding! Your ${mins}-minute timer for ${dishTitle} is up! 🔥🍳` }] }).catch((e) => console.error('Timer push failed:', e.message));
+        }
+      }, mins * 60 * 1000);
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `⏱️ Timer set for ${mins} minute(s)!` }] });
     }
 
     if (action === 'missing') {
@@ -941,21 +1476,28 @@ async function handleEvent(event) {
       if (!recipe) return null;
       db.analytics.affiliateClicks = (db.analytics.affiliateClicks || 0) + 1;
       saveDB();
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildShoppingListCard(recipe.title, recipe.missingItems, recipe.allIngredients)] });
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildShoppingListCard(`For: ${recipe.title}`, recipe.missingItems, recipe.allIngredients)] });
     }
 
     if (action === 'plan_list') {
-      const items = mealPlanStore.get(params.get('id')) || ['Chicken', 'Rice'];
+      const items = mealPlanStore.get(params.get('id')) || ['Chicken breast, eggs, garlic, rice'];
       db.analytics.affiliateClicks = (db.analytics.affiliateClicks || 0) + 1;
       saveDB();
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildShoppingListCard('Meal Plan Groceries', items)] });
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildShoppingListCard('3-Day Meal Prep Ingredients', items)] });
     }
 
     if (action === 'save') {
       const recipe = recipeStore.get(params.get('id'));
       if (!recipe) return null;
-      if (!session.saved.some(r => r.title === recipe.title)) { session.saved.push(recipe); saveDB(); }
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `❤️ Saved "${recipe.title}" to Cookbook!` }] });
+      if (!session.saved.some((r) => r.title === recipe.title)) { session.saved.push(recipe); saveDB(); }
+      return messagingClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{
+          type: 'text',
+          text: `❤️ Saved "${recipe.title}" to My Cookbook! (${session.saved.length} saved)`,
+          quickReply: getFilterQuickReplies(session),
+        }],
+      });
     }
 
     if (action === 'log_meal') {
@@ -969,23 +1511,30 @@ async function handleEvent(event) {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildStatsCard(session)] });
     }
 
-    if (action === 'goal_menu') return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildGoalPickerCard(session)] });
+    if (action === 'goal_menu') {
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildGoalPickerCard(session)] });
+    }
 
     if (action === 'set_goal') {
-      session.goals = { calories: parseInt(params.get('cal') || '2000', 10), protein: parseInt(params.get('pro') || '130', 10), label: params.get('label') || 'Custom' };
+      const cal = parseInt(params.get('cal') || '2000', 10);
+      const pro = parseInt(params.get('pro') || '130', 10);
+      const label = params.get('label') || `${cal} kcal | ${pro}g P`;
+      session.goals = { calories: cal, protein: pro, label };
       saveDB();
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ Macro goals updated!' }, buildStatsCard(session)] });
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `✅ Updated daily target to ${cal} kcal & ${pro}g protein!` }, buildStatsCard(session)] });
     }
 
     if (action === 'meal_plan') {
       if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [await generateMealPlanForSession(session)] });
+      const planCarousel = await generateMealPlanForSession(session);
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [planCarousel] });
     }
 
     if (action === 'filter') {
-      if (!session.lastPromptType) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: 'Send ingredients or photo first! 🥦📸' }] });
+      if (!session.lastPromptType) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: 'Send ingredients or a fridge photo first! 🥦📸' }] });
       if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [await generateRecipesForSession(session, params.get('style'))] });
+      const carousel = await generateRecipesForSession(session, params.get('style'));
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
     }
   }
 
@@ -995,9 +1544,21 @@ async function handleEvent(event) {
     const rawText = event.message.text.trim();
     const lower = rawText.toLowerCase();
 
-    if (lower === 'burmese' || lower === 'မြန်မာ') { session.lang = 'my'; saveDB(); return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ မြန်မာဘာသာသို့ ပြောင်းပြီးပါပြီ!' }] }); }
-    if (lower === 'thai' || lower === 'ไทย') { session.lang = 'th'; saveDB(); return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ เปลี่ยนเป็นภาษาไทยเรียบร้อย!' }] }); }
-    if (lower === 'english' || lower === 'en') { session.lang = 'en'; saveDB(); return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ Language set to English!' }] }); }
+    if (lower === 'burmese' || lower === 'မြန်မာ') {
+      session.lang = 'my';
+      saveDB();
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ မြန်မာဘာသာသို့ ပြောင်းပြီးပါပြီ!' }] });
+    }
+    if (lower === 'thai' || lower === 'ไทย' || lower === 'ภาษาไทย') {
+      session.lang = 'th';
+      saveDB();
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ เปลี่ยนเป็นภาษาไทยเรียบร้อย!' }] });
+    }
+    if (lower === 'english' || lower === 'en') {
+      session.lang = 'en';
+      saveDB();
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ Language set to English!' }] });
+    }
 
     if (session.waitingForPantryEdit) {
       session.waitingForPantryEdit = false;
@@ -1010,19 +1571,54 @@ async function handleEvent(event) {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `✅ Updated ingredients: "${rawText}"` }, carousel] });
     }
 
-    if (lower === 'help' || lower === 'menu' || lower === 'hi' || lower === 'hello') return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildWelcomeCard()] });
-    if (lower === 'revenue' || lower === 'ads') return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildB2BRevenueCard(session)] });
-    if (lower === 'stats' || lower === 'macros') return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildStatsCard(session)] });
-    if (lower === 'saved' || lower === 'cookbook') {
-      if (session.saved.length === 0) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '📖 Cookbook is empty!' }] });
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildRecipeCarousel(session.saved, session, false)] });
+    if (lower === 'help' || lower === 'menu' || lower === 'hi' || lower === 'hello' || lower === 'สวัสดี' || lower === 'မင်္ဂလာပါ') {
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildWelcomeCard()] });
+    }
+
+    if (lower === 'deal' || lower === 'coupon' || lower === 'flash') {
+      db.analytics.couponClaims = (db.analytics.couponClaims || 0) + 1;
+      saveDB();
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildFlashDealCard()] });
+    }
+
+    if (lower.startsWith('redeem ')) {
+      const code = rawText.slice(7).trim().toUpperCase();
+      const partnerInfo = B2B_PARTNER_CODES[code];
+      if (!partnerInfo) {
+        return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '❌ Invalid partner code.' }] });
+      }
+      if (!session.gymPartner) db.analytics.gymActivations = (db.analytics.gymActivations || 0) + 1;
+      session.gymPartner = partnerInfo.partner;
+      session.goals = { calories: partnerInfo.calories, protein: partnerInfo.protein, label: `${partnerInfo.partner} Plan` };
+      saveDB();
+      return messagingClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{ type: 'text', text: `✅ Linked to ${partnerInfo.partner}!` }, buildStatsCard(session)],
+      });
+    }
+
+    if (lower === 'revenue' || lower === 'ads' || lower === 'business') {
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildB2BRevenueCard(session)] });
+    }
+
+    if (lower === 'stats' || lower === 'macros') {
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildStatsCard(session)] });
+    }
+
+    if (lower === 'saved' || lower === 'cookbook' || lower === 'favorites') {
+      if (session.saved.length === 0) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '📖 Your Cookbook is empty!' }] });
+      const savedCarousel = buildRecipeCarousel(session.saved, session, false);
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [savedCarousel] });
     }
 
     if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
     session.lastPromptType = 'text';
     session.lastText = rawText;
+    session.lastImageBase64 = null;
     recordPantryTrends(rawText, []);
-    return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [await generateRecipesForSession(session)] });
+
+    const carousel = await generateRecipesForSession(session);
+    return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
   }
 
   if (event.message.type === 'image') {
@@ -1030,37 +1626,54 @@ async function handleEvent(event) {
     const base64Image = await getMessageBase64(event.message.id);
 
     const classifyRes = await generateWithFallback(
-      [{ inlineData: { mimeType: 'image/jpeg', data: base64Image } }, `Analyze image. Is it a grocery RECEIPT or FOOD/FRIDGE ingredients? Return ONLY valid JSON: { "type": "receipt" or "food", "receiptFoodItems": [], "fridgeIngredients": ["chicken", "garlic"] }`],
+      [
+        { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
+        `Analyze this image. Is it a shopping/grocery RECEIPT, or a photo of FOOD/FRIDGE ingredients? Return ONLY valid JSON: { "type": "receipt" or "food", "receiptFoodItems": ["item 1", "item 2"], "fridgeIngredients": ["chicken breast", "garlic", "tomato"] }`,
+      ],
       { responseMimeType: 'application/json' }
     );
-    const parsed = JSON.parse(classifyRes.text.replace(/```json|```/g, '').trim());
 
-    if (parsed.type === 'receipt' && Array.isArray(parsed.receiptFoodItems) && parsed.receiptFoodItems.length > 0) {
+    const parsedClass = JSON.parse(classifyRes.text.replace(/```json|```/g, '').trim());
+    if (parsedClass.type === 'receipt' && Array.isArray(parsedClass.receiptFoodItems) && parsedClass.receiptFoodItems.length > 0) {
       const batchId = `${Date.now()}`;
-      pendingReceiptItems.set(batchId, parsed.receiptFoodItems);
-      recordPantryTrends(parsed.receiptFoodItems.join(', '), []);
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildReceiptCard(parsed.receiptFoodItems, batchId)] });
+      pendingReceiptItems.set(batchId, parsedClass.receiptFoodItems);
+      recordPantryTrends(parsedClass.receiptFoodItems.join(', '), []);
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildReceiptCard(parsedClass.receiptFoodItems, batchId)] });
     }
 
-    const detected = Array.isArray(parsed.fridgeIngredients) && parsed.fridgeIngredients.length > 0 ? parsed.fridgeIngredients : ['chicken breast', 'garlic', 'eggs', 'rice'];
+    const detectedIngredients = Array.isArray(parsedClass.fridgeIngredients) && parsedClass.fridgeIngredients.length > 0
+      ? parsedClass.fridgeIngredients
+      : ['chicken breast', 'garlic', 'eggs', 'rice'];
+
     const batchId = `${Date.now()}`;
-    pendingPantryItems.set(batchId, detected);
+    pendingPantryItems.set(batchId, detectedIngredients);
     session.lastImageBase64 = base64Image;
     session.lastPromptType = 'image';
     saveDB();
 
-    return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildPantryVerificationCard(detected, batchId, session)] });
+    return messagingClient.replyMessage({
+      replyToken: event.replyToken,
+      messages: [buildPantryVerificationCard(detectedIngredients, batchId, session)],
+    });
   }
 
   if (event.message.type === 'audio') {
     if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
     const base64Audio = await getMessageBase64(event.message.id);
-    const transcribeRes = await generateWithFallback([{ inlineData: { mimeType: 'audio/m4a', data: base64Audio } }, 'Extract food ingredients spoken as a comma-separated phrase.'], {});
-    const spoken = transcribeRes.text.trim();
+
+    const transcribeRes = await generateWithFallback([
+      { inlineData: { mimeType: 'audio/m4a', data: base64Audio } },
+      'Extract ONLY the food ingredients spoken in this voice note as a concise comma-separated phrase.',
+    ]);
+
+    const spokenIngredients = transcribeRes.text.trim();
     session.lastPromptType = 'text';
-    session.lastText = spoken;
-    recordPantryTrends(spoken, []);
-    return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `🎙️ Heard: "${spoken}"` }, await generateRecipesForSession(session)] });
+    session.lastText = spokenIngredients;
+    session.lastImageBase64 = null;
+    recordPantryTrends(spokenIngredients, []);
+
+    const carousel = await generateRecipesForSession(session);
+    return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `🎙️ Heard: "${spokenIngredients}"` }, carousel] });
   }
 
   return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildWelcomeCard()] });
@@ -1073,6 +1686,9 @@ const server = app.listen(PORT, async () => {
 });
 
 process.on('SIGTERM', () => {
-  try { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf8'); } catch {}
+  console.log('🛑 SIGTERM received, saving db.json and closing server...');
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf8');
+  } catch {}
   server.close(() => process.exit(0));
 });
