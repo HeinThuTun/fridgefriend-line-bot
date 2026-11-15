@@ -44,7 +44,7 @@ setInterval(() => {
   }
 }, 30 * 60 * 1000).unref();
 
-// --- Multi-Language UI Strings Dictionary (Refined EN / TH / MY) ---
+// --- Multi-Language UI Strings Dictionary (Refined EN / TH / MY — No အမယ်) ---
 const UI_STRINGS = {
   en: {
     bestMatch: '🏆 BEST MATCH',
@@ -148,8 +148,8 @@ const UI_STRINGS = {
   my: {
     bestMatch: '🏆 အသင့်တော်ဆုံး',
     option: '✨ ဟင်းပွဲ',
-    uses: '🥬 သုံးထားသည့်အမယ်',
-    need: '🛒 ထပ်လိုသည့်အမယ်',
+    uses: '🥬 ပါဝင်ပစ္စည်းများ',
+    need: '🛒 ထပ်လိုသည့်ပစ္စည်း',
     itemsUnit: 'မျိုး',
     readyCook: '✅ ချက်ပြုတ်ရန် အသင့်ပဲ — လိုအပ်တာမရှိပါ!',
     cookBtn: '👨‍🍳 ချက်ပြုတ်မည်',
@@ -161,44 +161,54 @@ const UI_STRINGS = {
     nextStepBtn: 'နောက်တစ်ဆင့်',
     setTimerBtn: '⏱️ အချိန်မှတ်ရန်',
     minsUnit: 'မိနစ်',
-    prepCheck: '📋 ပါဝင်ပစ္စည်းနှင့် အချိုးအစား အပြည့်အစုံ:',
+    prepCheck: '📋 လိုအပ်သော ပါဝင်ပစ္စည်း အပြည့်အစုံ:',
     cookedBtn: '✅ ချက်ပြုတ်ပြီးပါပြီ',
     dailyMacros: '📊 ယနေ့ အာဟာရမှတ်တမ်း',
     target: '🎯 ရည်မှန်းချက်',
     protein: 'ပရိုတင်း',
     calories: 'ကယ်လိုရီ',
     mealsLogged: '🍽️ ယနေ့ ချက်ပြုတ်စားသုံးခဲ့သော ဟင်းပွဲများ:',
-    missingHeader: '🛒 ထပ်မံဝယ်ယူရန် လိုအပ်သော ပစ္စည်းများ',
-    fullRecipeHeader: '📋 ဤဟင်းပွဲအတွက် လိုအပ်သော ပစ္စည်းအားလုံး:',
+    missingHeader: '🛒 ထပ်မံဝယ်ယူရန် လိုအပ်သော ပါဝင်ပစ္စည်းများ',
+    fullRecipeHeader: '📋 ဤဟင်းပွဲအတွက် လိုအပ်သော ပါဝင်ပစ္စည်းအားလုံး:',
     havePrefix: '✅ ရှိပြီး',
     needPrefix: '🛒 လိုအပ်',
-    verifyTitle: '🔍 ဖတ်မိသော အမယ်များကို စစ်ဆေးပါ',
-    verifySubtitle: 'ပုံထဲမှ အောက်ပါအမယ်များကို တွေ့ရှိထားပါသည်။ မှန်ကန်ပါသလား?',
+    verifyTitle: '🔍 စကန်ဖတ်ထားသော ပါဝင်ပစ္စည်းများ',
+    verifySubtitle: 'ပုံထဲတွင် ဤပါဝင်ပစ္စည်းများကို တွေ့ရှိရပါသည်။ မှန်ကန်ပါသလား?',
     confirmBtn: '✅ မှန်ကန်သည် • ဟင်းပွဲရှာမည်',
-    editBtn: '✏️ စာရင်း ပြင်ဆင်မည်',
-    confirmedHeader: '🍳 သင့်အမယ်များဖြင့် အရသာရှိသော ဟင်းချက်နည်းများ ရှာဖွေနေပါပြီ...',
-    detected: 'တွေ့ရှိထားသော အမယ်စုစုပေါင်း',
-    editChoiceTitle: '✏️ အမယ်စာရင်း ပြင်ဆင်ရန်',
-    editChoiceSubtitle: 'ကျန်နေသော အမယ်များ ထပ်ထည့်မလား သို့မဟုတ် မှားနေသည်ကို ဖျက်မလား?',
-    addBtn: '➕ အမယ် ထပ်ထည့်မည်',
-    deleteBtn: '➖ အမယ် ဖျက်မည်',
+    editBtn: '✏️ ပါဝင်ပစ္စည်း ပြင်ဆင်မည်',
+    confirmedHeader: '🍳 သင့်ပါဝင်ပစ္စည်းများဖြင့် အရသာရှိသော ဟင်းချက်နည်းများ ရှာဖွေနေပါပြီ...',
+    detected: 'တွေ့ရှိထားသော ပါဝင်ပစ္စည်း',
+    editChoiceTitle: '✏️ ပါဝင်ပစ္စည်းစာရင်း ပြင်ဆင်ရန်',
+    editChoiceSubtitle: 'ကျန်နေသော ပါဝင်ပစ္စည်းများ ထပ်ထည့်မလား သို့မဟုတ် ဖျက်မလား?',
+    addBtn: '➕ ပါဝင်ပစ္စည်း ထပ်ထည့်မည်',
+    deleteBtn: '➖ ပါဝင်ပစ္စည်း ဖျက်မည်',
     cancelBtn: '↩️ စာရင်းသို့ ပြန်သွားမည်',
-    addPrompt: '➕ ထပ်ထည့်လိုသော အမယ်များကို ကော်မာ (,) ခံ၍ ရိုက်ပို့ပေးပါ (ဥပမာ - ကြက်ဥ၊ ခရမ်းချဉ်သီး၊ ငံပြာရည်):',
-    deletePrompt: '➖ စာရင်းထဲမှ ဖျက်လိုသော အမယ်များကို ရိုက်ပို့ပေးပါ (ဥပမာ - ကြက်သွန်ဖြူ၊ ခရမ်းချဉ်သီး):',
+    addPrompt: '➕ ထပ်ထည့်လိုသော ပါဝင်ပစ္စည်းများကို ကော်မာ (,) ခံ၍ ရိုက်ပို့ပေးပါ (ဥပမာ - ကြက်ဥ၊ ခရမ်းချဉ်သီး၊ ငံပြာရည်):',
+    deletePrompt: '➖ စာရင်းထဲမှ ဖျက်လိုသော ပါဝင်ပစ္စည်းများကို ရိုက်ပို့ပေးပါ (ဥပမာ - ကြက်သွန်ဖြူ၊ ခရမ်းချဉ်သီး):',
     addedMsg: 'ထပ်ထည့်ပြီးပါပြီ',
     removedMsg: 'ဖျက်ပြီးပါပြီ',
     alreadyInListMsg: 'စာရင်းထဲ ရှိပြီးသားဖြစ်သည်',
     notFoundMsg: 'စာရင်းထဲတွင် မတွေ့ပါ',
     noChange: 'ပြောင်းလဲမှု မရှိပါ။',
-    emptyList: '(အမယ်စာရင်း ဗလာဖြစ်နေပါသည်)',
-    emptyConfirm: '⚠️ အမယ်စာရင်း ဗလာဖြစ်နေပါသည် — ကျေးဇူးပြု၍ အမယ်အချို့ အရင်ထည့်ပေးပါ။',
-    expired: '⚠️ ဤစာရင်း သက်တမ်းကုန်သွားပါပြီ — ဓာတ်ပုံ သို့မဟုတ် အမယ်များ ပြန်ပို့ပေးပါ။ 🥦📸',
+    emptyList: '(ပါဝင်ပစ္စည်းစာရင်း မရှိသေးပါ)',
+    emptyConfirm: '⚠️ ပါဝင်ပစ္စည်းစာရင်း မရှိသေးပါ — ကျေးဇူးပြု၍ ပါဝင်ပစ္စည်းအချို့ အရင်ထည့်ပေးပါ။',
+    expired: '⚠️ ဤစာရင်း သက်တမ်းကုန်သွားပါပြီ — ဓာတ်ပုံ သို့မဟုတ် ပါဝင်ပစ္စည်းများ ပြန်ပို့ပေးပါ။ 🥦📸',
   },
 };
 
 function t(session, key) {
   const lang = session?.lang && UI_STRINGS[session.lang] ? session.lang : 'en';
   return UI_STRINGS[lang][key] || UI_STRINGS.en[key] || key;
+}
+
+// Helper to cleanly strip leading quantities/units without eating the first letter of words like "liters"
+function stripLeadingMeasure(str = '') {
+  return str
+    .replace(
+      /^[\d./–-]+\s*(?:(?:tbsp|tablespoons?|tsp|teaspoons?|cups?|grams?|g|kilograms?|kg|milliliters?|ml|liters?|litres?|l|oz|ounces?|lbs?|pounds?|pcs?|pieces?|cloves?|bunch(?:es)?|bottles?|cans?|packs?|slices?|stalks?|heads?|pinch(?:es)?|dash(?:es)?)\b|ช้อนโต๊ะ|ช้อนชา|กรัม|กิโลกรัม|ขีด|ถ้วย|ฟอง|หัว|กลีบ|ลูก|ต้น|ใบ|ลิตร|มิลลิลิตร|ဇွန်း|စားပွဲတင်ဇွန်း|လက်ဖက်ရည်ဇွန်း|ဂရမ်|ကီလို|လုံး|တောင့်|ပွင့်|ခွက်|လီတာ)?\s*(?:of\s+)?/i,
+      ''
+    )
+    .trim();
 }
 
 // --- Multi-User Persistence + Full 5-Stream B2B Analytics (db.json) ---
@@ -355,10 +365,7 @@ function recordPantryTrends(rawIngredientsText = '', missingItemsList = []) {
   if (Array.isArray(missingItemsList)) {
     for (const raw of missingItemsList) {
       if (!raw || raw.startsWith('None')) continue;
-      const clean = raw
-        .replace(/^[\d./]+\s*(?:tbsp|tsp|cup|cups|g|kg|ml|l|pcs|cloves|bunch|bottle|ช้อนโต๊ะ|ช้อนชา|กรัม|ขีด|ถ้วย|ฟอง|หัว|กลีบ|ဇွန်း|ဂရမ်|လုံး|တောင့်|ပွင့်)?\s*/i, '')
-        .trim()
-        .toLowerCase();
+      const clean = stripLeadingMeasure(raw).toLowerCase();
       if (clean.length >= 2) {
         db.analytics.missingCounts[clean] = (db.analytics.missingCounts[clean] || 0) + 1;
       }
@@ -1158,14 +1165,10 @@ function buildRecipeCarousel(recipes, session, includeQuickReplies = true, filte
     recipeStore.set(recipeId, normalizedRecipe);
 
     const topTag = idx === 0 ? t(session, 'bestMatch') : `${t(session, 'option')} #${idx + 1}`;
-    // Show up to 4 missing ingredient names cleanly on the card preview
+    // Safely strip leading quantities/units using word-boundary helper so "2 liters water" -> "water" (never "iters water")
     const missingCleanNames = missing
       .slice(0, 4)
-      .map((m) =>
-        m
-          .replace(/^[\d./]+\s*(?:tbsp|tsp|cup|cups|g|kg|ml|l|pcs|cloves|bunch|bottle|ช้อนโต๊ะ|ช้อนชา|กรัม|ขีด|ถ้วย|ฟอง|หัว|กลีบ|ลูก|ต้น|ใบ|ဇွန်း|ဂရမ်|လုံး|တောင့်|ပွင့်|ခွက်)?\s*/i, '')
-          .trim()
-      )
+      .map((m) => stripLeadingMeasure(m))
       .join(', ');
 
     bubbles.push({
@@ -1683,9 +1686,7 @@ function buildShoppingListCard(title, items, allIngredients = [], session = null
       ]
     : [];
 
-  const firstCleanItem = (items[0] || 'groceries')
-    .replace(/^[\d./]+\s*(?:tbsp|tsp|cup|cups|g|kg|ml|l|pcs|cloves|bunch|bottle|ช้อนโต๊ะ|ช้อนชา|กรัม|ขีด|ถ้วย|ฟอง|หัว|กลีบ|ဇွန်း|ဂရမ်|လုံး|တောင့်)?\s*/i, '')
-    .trim();
+  const firstCleanItem = stripLeadingMeasure(items[0] || 'groceries');
   const query = encodeURIComponent(firstCleanItem || 'chicken');
 
   return {
@@ -1717,7 +1718,7 @@ function buildShoppingListCard(title, items, allIngredients = [], session = null
   };
 }
 
-// --- Gemini AI Generators (Complete Ingredients Audit + 5–6 Detailed Cooking Steps + Natural TH/MY/EN) ---
+// --- Gemini AI Generators (Pure Single-Language Output + Complete Ingredients Audit + 5–6 Detailed Steps) ---
 async function generateRecipesForSession(session, filterStyle = null) {
   const styleInstructions = {
     budget_60: 'Focus strictly on STUDENT BUDGET-FRIENDLY meals costing UNDER 60 THB per serving.',
@@ -1728,14 +1729,18 @@ async function generateRecipesForSession(session, filterStyle = null) {
   const extraRule = filterStyle && styleInstructions[filterStyle] ? styleInstructions[filterStyle] : '';
 
   const langInstructions = {
-    th: `LANGUAGE RULE (CRITICAL — THAI):
-- Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in natural, fluent culinary THAI (ภาษาไทยธรรมชาติที่ใช้ในตำราอาหารไทย เช่น ช้อนโต๊ะ, ช้อนชา, กรัม, ขีด, ซีอิ๊วขาว, ซอสหอยนางรม, น้ำปลา, น้ำตาลทราย, พริกไทยป่น, ข้าวสวยร้อนๆ).`,
-    en: `LANGUAGE RULE (CRITICAL — ENGLISH):
-- Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in clear, natural ENGLISH.`,
-    my: `LANGUAGE RULE (CRITICAL — BURMESE):
-- Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in natural, fluent everyday Myanmar culinary language (မြန်မာဘာသာစကား အမှန်အကန် သဘာဝကျကျ ရေးပါ — ဥပမာ စားပွဲတင်ဇွန်း၊ လက်ဖက်ရည်ဇွန်း၊ ဂရမ်၊ ပဲငံပြာရည်အကြည်၊ ခရုဆီ၊ ငံပြာရည်၊ ဆား၊ သကြား၊ ဟင်းချက်ဆီ၊ ကြက်သွန်ဖြူ၊ ကြက်သွန်နီ၊ ထမင်းပူပူ). Avoid awkward literal translations.`,
-    auto: `LANGUAGE RULE (CRITICAL — AUTO-DETECT):
-- Detect the language of the user's input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English) and write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") in THAT EXACT SAME LANGUAGE with natural culinary terms.`,
+    th: `LANGUAGE RULE (CRITICAL — 100% THAI ONLY):
+- Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in 100% natural culinary THAI (ภาษาไทยล้วน เช่น ช้อนโต๊ะ, ช้อนชา, กรัม, ซีอิ๊วขาว, ซอสหอยนางรม, น้ำปลา, น้ำตาลทราย, พริกไทยป่น, ข้าวสวยร้อนๆ).
+- Even if the user's input ingredients are written in English or Burmese, TRANSLATE every ingredient name into Thai. NEVER include Burmese or English words in parentheses.`,
+    en: `LANGUAGE RULE (CRITICAL — 100% ENGLISH ONLY):
+- Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in 100% pure ENGLISH.
+- Even if the user's input ingredients are written in Burmese or Thai, TRANSLATE every single ingredient name into plain English (e.g., write "500g beef bones", NEVER write "500g အမဲရိုး (beef bones)"). Do NOT include any Burmese or Thai characters anywhere in the JSON.`,
+    my: `LANGUAGE RULE (CRITICAL — 100% BURMESE ONLY & NEVER USE "အမယ်"):
+- Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in 100% natural, fluent Myanmar language (မြန်မာဘာသာသီးသန့်ဖြင့် ရေးပါ — ဥပမာ စားပွဲတင်ဇွန်း၊ လက်ဖက်ရည်ဇွန်း၊ ဂရမ်၊ ပဲငံပြာရည်အကြည်၊ ခရုဆီ၊ ငံပြာရည်၊ ဆား၊ သကြား၊ ဟင်းချက်ဆီ၊ ကြက်သွန်ဖြူ၊ ကြက်သွန်နီ၊ ထမင်းပူပူ).
+- NEVER use the word "အမယ်" anywhere — use "ပါဝင်ပစ္စည်း" or the specific food name instead.
+- Even if the user's input ingredients are written in English or Thai, TRANSLATE every ingredient name into natural Burmese without English words in parentheses.`,
+    auto: `LANGUAGE RULE (CRITICAL — AUTO-DETECT SINGLE LANGUAGE):
+- Detect the language of the user's input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English) and write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") 100% in THAT SINGLE LANGUAGE (do not mix languages or put translations in parentheses). If Burmese, never use the word "အမယ်" (use "ပါဝင်ပစ္စည်း").`,
   };
   const chosenLangRule = langInstructions[session.lang] || langInstructions.auto;
 
@@ -1745,7 +1750,7 @@ ${chosenLangRule}
 
 CRITICAL INGREDIENT & MISSING-ITEM AUDIT RULES (DO NOT SKIP ANY ITEM):
 1. "allIngredients": Must list EVERY SINGLE ingredient required to actually cook the dish so it tastes complete and authentic (6 to 10 items with exact measurements, e.g., main protein, vegetables, aromatics like garlic/shallots/chili/ginger, cooking oil, sauces like soy sauce/fish sauce/oyster sauce, sugar/salt/pepper, water/stock, and rice/noodles if served with it).
-2. "usedIngredients": List ONLY the ingredients from the user's provided list/photo that are used in this recipe (with measurements).
+2. "usedIngredients": List ONLY the ingredients from the user's provided list/photo that are used in this recipe (translated into the target output language with measurements).
 3. "missingItems": Strictly compare "allIngredients" against ONLY what the user explicitly provided. Put EVERY SINGLE required ingredient that the user did NOT explicitly mention (including cooking oil, sauces, seasonings, sugar, salt, pepper, garlic, onion, chili, herbs, stock, and rice/noodles) inside "missingItems" with exact quantities! Never return only 1 missing item when the recipe also needs oil, sauces, seasonings, or aromatics that the user did not list.
 
 CRITICAL STEP-BY-STEP COOKING INSTRUCTIONS RULE:
@@ -1763,7 +1768,7 @@ Return ONLY valid JSON (no markdown) matching this exact structure:
       "title": "Dish Name",
       "emoji": "🍗",
       "mainIngredient": "chicken",
-      "usedIngredients": ["200g chicken breast, sliced", "4 cloves garlic, minced"],
+      "usedIngredients": ["200g chicken breast", "4 cloves garlic"],
       "calories": 520,
       "protein": 44,
       "costThb": 48,
@@ -1813,9 +1818,9 @@ Suggest 3 distinct, practical, delicious recipes.`;
 
 async function generateMealPlanForSession(session) {
   const langInstructions = {
-    th: 'Write the entire meal plan in natural THAI (ภาษาไทย).',
-    en: 'Write the entire meal plan in ENGLISH.',
-    my: 'Write the entire meal plan in natural, fluent BURMESE (မြန်မာဘာသာ).',
+    th: 'Write the entire meal plan strictly in 100% natural THAI (ภาษาไทยล้วน). Translate all ingredient names into Thai.',
+    en: 'Write the entire meal plan strictly in 100% pure ENGLISH. Translate all ingredient names into English.',
+    my: 'Write the entire meal plan strictly in 100% natural, fluent BURMESE (မြန်မာဘာသာသီးသန့်). Never use the word "အမယ်" (use "ပါဝင်ပစ္စည်း").',
     auto: 'Match the user\'s input language (Burmese, Thai, or English) or default to English.',
   };
 
@@ -2219,10 +2224,10 @@ async function handleEvent(event) {
     const base64Image = await getMessageBase64(event.message.id);
 
     const scanLangHint = session.lang === 'my'
-      ? 'Write the item names in natural Burmese (မြန်မာဘာသာ).'
+      ? 'Write the item names strictly in natural Burmese (မြန်မာဘာသာသီးသန့်) without English in parentheses, and never use the word "အမယ်".'
       : session.lang === 'th'
-      ? 'Write the item names in natural Thai (ภาษาไทย).'
-      : 'Write the item names in English.';
+      ? 'Write the item names strictly in natural Thai (ภาษาไทยล้วน) without English in parentheses.'
+      : 'Write the item names strictly in plain English.';
 
     const classifyRes = await generateWithFallback(
       [
