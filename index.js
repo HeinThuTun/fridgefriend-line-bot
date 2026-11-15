@@ -703,7 +703,7 @@ function buildFlashDealCard() {
   };
 }
 
-// --- Balanced-Height Soft-Mint & Cream Recipe Carousel (116px Header + Spacious Body) ---
+// --- Multi-Theme Pastel Recipe Carousel (Taller Balanced Proportions + Pixel-Aligned Ads) ---
 function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = '') {
   const safeRecipes = Array.isArray(recipes) && recipes.length > 0
     ? recipes.slice(0, 5)
@@ -720,6 +720,49 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
         steps: ['Slice chicken and mince garlic.', 'Stir-fry over medium-high heat for 8 minutes.', 'Season with soy sauce and serve hot over rice!'],
       }];
 
+  const cardThemes = [
+    {
+      headerBg: '#ECFDF5',
+      tagColor: '#059669',
+      titleColor: '#064E3B',
+      barTrack: '#A7F3D0',
+      barFill: '#10B981',
+      btnColor: '#10B981',
+    },
+    {
+      headerBg: '#EFF6FF',
+      tagColor: '#2563EB',
+      titleColor: '#1E3A8A',
+      barTrack: '#BFDBFE',
+      barFill: '#3B82F6',
+      btnColor: '#2563EB',
+    },
+    {
+      headerBg: '#FFF7ED',
+      tagColor: '#EA580C',
+      titleColor: '#7C2D12',
+      barTrack: '#FED7AA',
+      barFill: '#F97316',
+      btnColor: '#EA580C',
+    },
+    {
+      headerBg: '#F5F3FF',
+      tagColor: '#7C3AED',
+      titleColor: '#4C1D95',
+      barTrack: '#DDD6FE',
+      barFill: '#8B5CF6',
+      btnColor: '#7C3AED',
+    },
+    {
+      headerBg: '#FFF1F2',
+      tagColor: '#E11D48',
+      titleColor: '#881337',
+      barTrack: '#FECDD3',
+      barFill: '#F43F5E',
+      btnColor: '#E11D48',
+    },
+  ];
+
   const enriched = safeRecipes.map((recipe) => {
     const allIngredients = Array.isArray(recipe.allIngredients) ? recipe.allIngredients : [];
     const missing = Array.isArray(recipe.missingItems) && recipe.missingItems.length > 0 ? recipe.missingItems : ['None — ready!'];
@@ -734,6 +777,7 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
 
   for (let idx = 0; idx < enriched.length; idx++) {
     const recipe = enriched[idx];
+    const theme = cardThemes[idx % cardThemes.length];
     const recipeId = `${Date.now()}_${idx}_${Math.floor(Math.random() * 1000)}`;
     const title = (recipe.title || 'Quick Fridge Dish').slice(0, 52);
     const time = (recipe.time || '15m').replace(/\s*total/i, '');
@@ -766,12 +810,12 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
     bubbles.push({
       type: 'bubble',
       size: 'mega',
-      // Balanced 116px Soft-Mint Header (Consistent across all cards)
+      // Fixed 128px Pastel Header (Identical height across every card)
       header: {
         type: 'box',
         layout: 'vertical',
-        backgroundColor: '#ECFDF5',
-        height: '116px',
+        backgroundColor: theme.headerBg,
+        height: '128px',
         paddingAll: 'lg',
         justifyContent: 'space-between',
         contents: [
@@ -780,14 +824,14 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
             layout: 'horizontal',
             alignItems: 'center',
             contents: [
-              { type: 'text', text: topTag, color: '#059669', size: 'xs', weight: 'bold', flex: 3 },
-              { type: 'text', text: `⏱️ ${time}`, color: '#047857', size: 'xs', weight: 'bold', align: 'end', flex: 2 },
+              { type: 'text', text: topTag, color: theme.tagColor, size: 'xs', weight: 'bold', flex: 3 },
+              { type: 'text', text: `⏱️ ${time}`, color: theme.tagColor, size: 'xs', weight: 'bold', align: 'end', flex: 2 },
             ],
           },
           {
             type: 'text',
             text: `${recipe.emoji || '🍳'} ${title}`,
-            color: '#064E3B',
+            color: theme.titleColor,
             size: 'md',
             weight: 'bold',
             wrap: true,
@@ -802,7 +846,7 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
               {
                 type: 'box',
                 layout: 'vertical',
-                backgroundColor: '#A7F3D0',
+                backgroundColor: theme.barTrack,
                 height: '6px',
                 cornerRadius: 'md',
                 flex: 3,
@@ -810,7 +854,7 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
                   {
                     type: 'box',
                     layout: 'vertical',
-                    backgroundColor: '#10B981',
+                    backgroundColor: theme.barFill,
                     height: '6px',
                     width: `${matchPct}%`,
                     cornerRadius: 'md',
@@ -818,19 +862,20 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
                   },
                 ],
               },
-              { type: 'text', text: `${matchPct}% Match`, color: '#047857', size: 'xs', weight: 'bold', align: 'end', flex: 2 },
+              { type: 'text', text: `${matchPct}% Match`, color: theme.tagColor, size: 'xs', weight: 'bold', align: 'end', flex: 2 },
             ],
           },
         ],
       },
-      // Normal, Well-Spaced Body (Comfortable vertical rhythm without scrolling)
+      // Fixed-Height Body + Locked Slot Heights so the Ad Pill Aligns Horizontally on Every Card!
       body: {
         type: 'box',
         layout: 'vertical',
+        height: '252px',
         paddingAll: 'xl',
-        spacing: 'lg',
+        justifyContent: 'space-between',
         contents: [
-          // 3 Friendly Stat Pills
+          // 1. Top Slot: 3 Friendly Stat Pills
           {
             type: 'box',
             layout: 'horizontal',
@@ -841,7 +886,7 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
                 layout: 'vertical',
                 backgroundColor: '#F8FAFC',
                 cornerRadius: 'md',
-                paddingAll: 'sm',
+                paddingAll: 'md',
                 flex: 1,
                 contents: [
                   { type: 'text', text: `🔥 ${calories}`, size: 'sm', color: '#1E293B', align: 'center', weight: 'bold' },
@@ -853,10 +898,10 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
                 layout: 'vertical',
                 backgroundColor: '#F8FAFC',
                 cornerRadius: 'md',
-                paddingAll: 'sm',
+                paddingAll: 'md',
                 flex: 1,
                 contents: [
-                  { type: 'text', text: `💪 ${protein}g`, size: 'sm', color: '#059669', align: 'center', weight: 'bold' },
+                  { type: 'text', text: `💪 ${protein}g`, size: 'sm', color: theme.tagColor, align: 'center', weight: 'bold' },
                   { type: 'text', text: 'protein', size: 'xxs', color: '#64748B', align: 'center' },
                 ],
               },
@@ -865,7 +910,7 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
                 layout: 'vertical',
                 backgroundColor: '#F8FAFC',
                 cornerRadius: 'md',
-                paddingAll: 'sm',
+                paddingAll: 'md',
                 flex: 1,
                 contents: [
                   { type: 'text', text: `💵 ~${costThb}฿`, size: 'sm', color: '#1E293B', align: 'center', weight: 'bold' },
@@ -874,10 +919,12 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
               },
             ],
           },
-          // Clean 2-Line Pantry Summary (2 lines max each so nothing feels cramped)
+          // 2. Middle Slot: Fixed-Height Pantry Summary (Prevents 1-line vs 2-line shifts!)
           {
             type: 'box',
             layout: 'vertical',
+            height: '82px',
+            justifyContent: 'center',
             spacing: 'sm',
             contents: [
               {
@@ -901,7 +948,7 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
               },
             ],
           },
-          // Subtle Warm Partner Pill
+          // 3. Bottom Slot: Partner Ad Pill (Pinned to exact same Y-position across all cards!)
           {
             type: 'box',
             layout: 'horizontal',
@@ -928,7 +975,7 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
           {
             type: 'button',
             style: 'primary',
-            color: '#10B981',
+            color: theme.btnColor,
             height: 'sm',
             action: { type: 'postback', label: "👨‍🍳 Let's Cook!", data: `action=cook&id=${recipeId}&step=0`, displayText: `Start cooking ${title}`.slice(0, 300) },
           },
