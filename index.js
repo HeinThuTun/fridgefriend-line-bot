@@ -20,7 +20,7 @@ const DB_FILE = path.join(__dirname, 'db.json');
 const recipeStore = new Map();
 const mealPlanStore = new Map();
 const pendingReceiptItems = new Map();
-const pendingPantryItems = new Map(); // Added for pantry verification
+const pendingPantryItems = new Map(); // batchId -> array of ingredient strings (editable working list)
 let cachedModels = null;
 
 // Clean up expired cache every 30 minutes (keeps RAM flat for 70+ users)
@@ -69,8 +69,23 @@ const UI_STRINGS = {
     verifySubtitle: 'We detected these items in your photo. Are they correct?',
     confirmBtn: '✅ Correct & Find Recipes',
     editBtn: '✏️ Edit Ingredients',
-    editPrompt: '✍️ Please type your corrected list of ingredients (e.g., chicken breast, garlic, tomato):',
     confirmedHeader: '🍳 Finding delicious recipes for your items...',
+    // --- Edit flow ---
+    detected: 'Detected',
+    editChoiceTitle: '✏️ Edit Ingredients',
+    editChoiceSubtitle: 'What would you like to do?',
+    addBtn: '➕ Add ingredients',
+    deleteBtn: '➖ Delete ingredients',
+    cancelBtn: '↩️ Back to list',
+    addPrompt: '➕ Type the ingredients you want to ADD (e.g., egg, tomato):',
+    deletePrompt: '➖ Type the ingredients you want to DELETE from the list (e.g., garlic, tomato):',
+    addedMsg: 'Added',
+    removedMsg: 'Removed',
+    notFoundMsg: 'Not found in list',
+    noChange: 'No changes made.',
+    emptyList: '(list is empty)',
+    emptyConfirm: 'Your ingredient list is empty — please add some ingredients first.',
+    expired: 'This list expired — please send your ingredients or photo again. 🥦📸',
   },
   th: {
     bestMatch: '🏆 แนะนำที่สุด',
@@ -95,8 +110,22 @@ const UI_STRINGS = {
     verifySubtitle: 'ระบบตรวจพบวัตถุดิบเหล่านี้จากรูปภาพ ถูกต้องไหม?',
     confirmBtn: '✅ ถูกต้อง & ค้นหาเมนู',
     editBtn: '✏️ แก้ไขวัตถุดิบ',
-    editPrompt: '✍️ กรุณาพิมพ์รายการวัตถุดิบที่ถูกต้องของคุณ (เช่น อกไก่, กระเทียม, มะเขือเทศ):',
     confirmedHeader: '🍳 กำลังค้นหาเมนูอร่อยจากวัตถุดิบของคุณ...',
+    detected: 'ตรวจพบ',
+    editChoiceTitle: '✏️ แก้ไขวัตถุดิบ',
+    editChoiceSubtitle: 'คุณต้องการทำอะไร?',
+    addBtn: '➕ เพิ่มวัตถุดิบ',
+    deleteBtn: '➖ ลบวัตถุดิบ',
+    cancelBtn: '↩️ กลับไปที่รายการ',
+    addPrompt: '➕ พิมพ์วัตถุดิบที่ต้องการ "เพิ่ม" (เช่น ไข่, มะเขือเทศ):',
+    deletePrompt: '➖ พิมพ์วัตถุดิบที่ต้องการ "ลบ" ออกจากรายการ (เช่น กระเทียม, มะเขือเทศ):',
+    addedMsg: 'เพิ่มแล้ว',
+    removedMsg: 'ลบแล้ว',
+    notFoundMsg: 'ไม่พบในรายการ',
+    noChange: 'ไม่มีการเปลี่ยนแปลง',
+    emptyList: '(รายการว่าง)',
+    emptyConfirm: 'รายการวัตถุดิบว่างอยู่ — กรุณาเพิ่มวัตถุดิบก่อน',
+    expired: 'รายการนี้หมดอายุแล้ว — กรุณาส่งวัตถุดิบหรือรูปภาพใหม่อีกครั้ง 🥦📸',
   },
   my: {
     bestMatch: '🏆 အသင့်တော်ဆုံး',
@@ -121,8 +150,22 @@ const UI_STRINGS = {
     verifySubtitle: 'သင့်ပုံထဲတွင် ဤပစ္စည်းများကို တွေ့ရှိရပါသည်။ မှန်ကန်ပါသလား?',
     confirmBtn: '✅ မှန်ကန်သည် & ဟင်းပွဲရှာမည်',
     editBtn: '✏️ ပြင်ဆင်မည်',
-    editPrompt: '✍️ မှန်ကန်သော ပါဝင်ပစ္စည်းများကို ပြန်လည်ရိုက်ထည့်ပေးပါ (ဥပမာ - ကြက်သား၊ ကြက်သွန်ဖြူ):',
     confirmedHeader: '🍳 ဟင်းချက်နည်းများကို ရှာဖွေနေပါပြီ...',
+    detected: 'တွေ့ရှိသည်',
+    editChoiceTitle: '✏️ ပါဝင်ပစ္စည်းများ ပြင်ဆင်ရန်',
+    editChoiceSubtitle: 'ဘာလုပ်ချင်ပါသလဲ?',
+    addBtn: '➕ ထပ်ထည့်မည်',
+    deleteBtn: '➖ ဖျက်မည်',
+    cancelBtn: '↩️ စာရင်းသို့ ပြန်သွားမည်',
+    addPrompt: '➕ စာရင်းထဲသို့ ထပ်ထည့်လိုသော ပါဝင်ပစ္စည်းများကို ရိုက်ထည့်ပါ (ဥပမာ - ကြက်ဥ၊ ခရမ်းချဉ်သီး):',
+    deletePrompt: '➖ စာရင်းထဲမှ ဖျက်လိုသော ပါဝင်ပစ္စည်းများကို ရိုက်ထည့်ပါ (ဥပမာ - ကြက်သွန်ဖြူ၊ ခရမ်းချဉ်သီး):',
+    addedMsg: 'ထပ်ထည့်ပြီး',
+    removedMsg: 'ဖျက်ပြီး',
+    notFoundMsg: 'စာရင်းထဲတွင် မတွေ့ပါ',
+    noChange: 'ပြောင်းလဲမှု မရှိပါ။',
+    emptyList: '(စာရင်း ကွက်လပ်ဖြစ်နေသည်)',
+    emptyConfirm: 'စာရင်း ကွက်လပ်ဖြစ်နေသည် — ပါဝင်ပစ္စည်းများ အရင်ထည့်ပါ။',
+    expired: 'ဤစာရင်း သက်တမ်းကုန်သွားပါပြီ — ပါဝင်ပစ္စည်း သို့မဟုတ် ဓာတ်ပုံ ထပ်ပို့ပါ။ 🥦📸',
   },
 };
 
@@ -188,7 +231,8 @@ function getSession(userId) {
   if (!db.users[userId]) {
     db.users[userId] = {
       lang: 'auto', // 'auto' | 'en' | 'th' | 'my'
-      waitingForPantryEdit: false, // Added for edit state
+      pantryEditMode: null, // null | 'add' | 'delete'  (what the next typed message does)
+      pantryBatchId: null, // which scanned-ingredient list is being edited
       lastPromptType: null,
       lastText: '',
       lastImageBase64: null,
@@ -201,12 +245,66 @@ function getSession(userId) {
   }
   const user = db.users[userId];
   if (!user.lang) user.lang = 'auto';
-  if (user.waitingForPantryEdit === undefined) user.waitingForPantryEdit = false;
+  // Migrate from the old single-flag edit mode
+  if ('waitingForPantryEdit' in user) delete user.waitingForPantryEdit;
+  if (user.pantryEditMode === undefined) user.pantryEditMode = null;
+  if (user.pantryBatchId === undefined) user.pantryBatchId = null;
   if (!user.goals) user.goals = { calories: 2000, protein: 130, label: 'Balanced (2000 kcal)' };
   if (!Array.isArray(user.saved)) user.saved = [];
   const today = getTodayKey();
   if (!user.logs[today]) user.logs[today] = { calories: 0, protein: 0, meals: [] };
   return user;
+}
+
+// --- Pantry list editing helpers (add / delete) ---
+function parseIngredientList(text = '') {
+  return text
+    .split(/[,;\n၊،、]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 1 && s.length <= 60);
+}
+
+function normIngredient(s = '') {
+  return s.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function addIngredientsToList(list, requested) {
+  const updated = [...list];
+  const added = [];
+  const skipped = [];
+  for (const raw of requested) {
+    const n = normIngredient(raw);
+    if (!n) continue;
+    if (updated.some((x) => normIngredient(x) === n)) {
+      skipped.push(raw);
+      continue;
+    }
+    if (updated.length >= 40) break;
+    updated.push(raw);
+    added.push(raw);
+  }
+  return { updated, added, skipped };
+}
+
+function removeIngredientsFromList(list, requested) {
+  let updated = [...list];
+  const removed = [];
+  const notFound = [];
+  for (const raw of requested) {
+    const target = normIngredient(raw);
+    if (!target) continue;
+    const before = updated.length;
+    updated = updated.filter((item) => {
+      const n = normIngredient(item);
+      if (n === target) return false;
+      if (target.length >= 2 && n.includes(target)) return false; // "garlic" removes "garlic cloves"
+      if (n.length >= 3 && target.includes(n)) return false; // "chicken breast fillet" removes "chicken breast"
+      return true;
+    });
+    if (updated.length < before) removed.push(raw);
+    else notFound.push(raw);
+  }
+  return { updated, removed, notFound };
 }
 
 // --- Stream 4: Verified B2B Partner Invite Codes ---
@@ -586,18 +684,20 @@ function getFilterQuickReplies(session) {
   };
 }
 
-// --- Pantry Verification Card Builder ---
+// --- Pantry Verification Card Builder (shows the current working list) ---
 function buildPantryVerificationCard(items, batchId, session) {
-  const itemRows = items.map((item) => ({
-    type: 'box',
-    layout: 'horizontal',
-    spacing: 'sm',
-    margin: 'xs',
-    contents: [
-      { type: 'text', text: '🥬', size: 'sm', flex: 0 },
-      { type: 'text', text: item, size: 'sm', color: '#1F2937', weight: 'bold', wrap: true, flex: 1 },
-    ],
-  }));
+  const itemRows = items.length > 0
+    ? items.map((item) => ({
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'sm',
+        margin: 'xs',
+        contents: [
+          { type: 'text', text: '🥬', size: 'sm', flex: 0 },
+          { type: 'text', text: item, size: 'sm', color: '#1F2937', weight: 'bold', wrap: true, flex: 1 },
+        ],
+      }))
+    : [{ type: 'text', text: t(session, 'emptyList'), size: 'sm', color: '#9CA3AF', margin: 'sm', wrap: true }];
 
   return {
     type: 'flex',
@@ -620,7 +720,7 @@ function buildPantryVerificationCard(items, batchId, session) {
         spacing: 'sm',
         paddingAll: 'lg',
         contents: [
-          { type: 'text', text: `Detected ${items.length} ingredient(s):`, size: 'xs', color: '#6B7280' },
+          { type: 'text', text: `${t(session, 'detected')}: ${items.length}`, size: 'xs', color: '#6B7280' },
           { type: 'separator', margin: 'sm' },
           ...itemRows,
         ],
@@ -643,6 +743,55 @@ function buildPantryVerificationCard(items, batchId, session) {
             style: 'secondary',
             height: 'sm',
             action: { type: 'postback', label: t(session, 'editBtn'), data: `action=pantry_edit&batch=${batchId}`, displayText: 'I want to edit my ingredients ✏️' },
+          },
+        ],
+      },
+    },
+  };
+}
+
+// --- Pantry Edit Choice Card: Add or Delete ---
+function buildPantryEditChoiceCard(batchId, session) {
+  return {
+    type: 'flex',
+    altText: t(session, 'editChoiceTitle'),
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#ECFDF5',
+        paddingAll: 'md',
+        contents: [
+          { type: 'text', text: t(session, 'editChoiceTitle'), color: '#059669', size: 'xs', weight: 'bold' },
+          { type: 'text', text: t(session, 'editChoiceSubtitle'), color: '#064E3B', size: 'sm', weight: 'bold', wrap: true },
+        ],
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        paddingAll: 'md',
+        contents: [
+          {
+            type: 'button',
+            style: 'primary',
+            color: '#10B981',
+            height: 'sm',
+            action: { type: 'postback', label: t(session, 'addBtn'), data: `action=pantry_mode&mode=add&batch=${batchId}`, displayText: '➕ Add ingredients' },
+          },
+          {
+            type: 'button',
+            style: 'primary',
+            color: '#DC2626',
+            height: 'sm',
+            action: { type: 'postback', label: t(session, 'deleteBtn'), data: `action=pantry_mode&mode=delete&batch=${batchId}`, displayText: '➖ Delete ingredients' },
+          },
+          {
+            type: 'button',
+            style: 'secondary',
+            height: 'sm',
+            action: { type: 'postback', label: t(session, 'cancelBtn'), data: `action=pantry_cancel&batch=${batchId}`, displayText: '↩️ Back to list' },
           },
         ],
       },
@@ -1565,27 +1714,84 @@ async function handleEvent(event) {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: confirmMap[lang] }] });
     }
 
-    // Pantry Verification Confirm Action
+    // --- Pantry Verification: Confirm ---
     if (action === 'pantry_confirm') {
       const batchId = params.get('batch');
-      const items = pendingPantryItems.get(batchId) || [];
+      const items = pendingPantryItems.get(batchId);
+      session.pantryEditMode = null;
+      session.pantryBatchId = null;
+
+      if (!items) {
+        saveDB();
+        return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: t(session, 'expired') }] });
+      }
+      if (items.length === 0) {
+        saveDB();
+        return messagingClient.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: t(session, 'emptyConfirm') }, buildPantryVerificationCard(items, batchId, session)],
+        });
+      }
+
       session.lastPromptType = 'text';
       session.lastText = items.join(', ');
-      session.waitingForPantryEdit = false;
+      session.lastImageBase64 = null;
       recordPantryTrends(session.lastText, []);
+      saveDB();
       if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
       const carousel = await generateRecipesForSession(session);
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: t(session, 'confirmedHeader') }, carousel] });
     }
 
-    // Pantry Verification Edit Action
+    // --- Pantry Verification: Edit -> ask Add or Delete ---
     if (action === 'pantry_edit') {
-      session.waitingForPantryEdit = true;
+      const batchId = params.get('batch');
+      if (!pendingPantryItems.has(batchId)) {
+        return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: t(session, 'expired') }] });
+      }
+      session.pantryEditMode = null; // wait for the user to choose Add or Delete
+      session.pantryBatchId = batchId;
       saveDB();
       return messagingClient.replyMessage({
         replyToken: event.replyToken,
-        messages: [{ type: 'text', text: t(session, 'editPrompt') }],
+        messages: [buildPantryEditChoiceCard(batchId, session)],
       });
+    }
+
+    // --- Pantry Edit: user chose Add or Delete ---
+    if (action === 'pantry_mode') {
+      const batchId = params.get('batch');
+      const mode = params.get('mode') === 'delete' ? 'delete' : 'add';
+      if (!pendingPantryItems.has(batchId)) {
+        return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: t(session, 'expired') }] });
+      }
+      session.pantryEditMode = mode;
+      session.pantryBatchId = batchId;
+      saveDB();
+      return messagingClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{
+          type: 'text',
+          text: t(session, mode === 'add' ? 'addPrompt' : 'deletePrompt'),
+          quickReply: {
+            items: [
+              { type: 'action', action: { type: 'postback', label: t(session, 'cancelBtn').slice(0, 20), data: `action=pantry_cancel&batch=${batchId}`, displayText: '↩️ Back to list' } },
+            ],
+          },
+        }],
+      });
+    }
+
+    // --- Pantry Edit: cancel -> show the list again ---
+    if (action === 'pantry_cancel') {
+      const batchId = params.get('batch');
+      session.pantryEditMode = null;
+      saveDB();
+      const items = pendingPantryItems.get(batchId);
+      if (!items) {
+        return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: t(session, 'expired') }] });
+      }
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildPantryVerificationCard(items, batchId, session)] });
     }
 
     if (action === 'sponsor_click') {
@@ -1699,6 +1905,47 @@ async function handleEvent(event) {
     const rawText = event.message.text.trim();
     const lower = rawText.toLowerCase();
 
+    // --- Pantry list editing: the typed message ADDS to or DELETES from the scanned list ---
+    // (Checked first so ingredient names can never be mistaken for commands.)
+    if (session.pantryEditMode && session.pantryBatchId) {
+      const mode = session.pantryEditMode;
+      const batchId = session.pantryBatchId;
+      session.pantryEditMode = null; // one edit per Add/Delete choice, then show the list again
+      saveDB();
+
+      const current = pendingPantryItems.get(batchId);
+      if (!current) {
+        return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: t(session, 'expired') }] });
+      }
+
+      const requested = parseIngredientList(rawText);
+      let updated = current;
+      const summary = [];
+
+      if (mode === 'add') {
+        const res = addIngredientsToList(current, requested);
+        updated = res.updated;
+        if (res.added.length) summary.push(`➕ ${t(session, 'addedMsg')}: ${res.added.join(', ')}`);
+        if (res.skipped.length) summary.push(`ℹ️ ${res.skipped.join(', ')} (already in list)`);
+      } else {
+        const res = removeIngredientsFromList(current, requested);
+        updated = res.updated;
+        if (res.removed.length) summary.push(`➖ ${t(session, 'removedMsg')}: ${res.removed.join(', ')}`);
+        if (res.notFound.length) summary.push(`⚠️ ${t(session, 'notFoundMsg')}: ${res.notFound.join(', ')}`);
+      }
+
+      if (summary.length === 0) summary.push(t(session, 'noChange'));
+      pendingPantryItems.set(batchId, updated);
+
+      return messagingClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [
+          { type: 'text', text: summary.join('\n') },
+          buildPantryVerificationCard(updated, batchId, session),
+        ],
+      });
+    }
+
     if (lower === 'burmese' || lower === 'မြန်မာ') {
       session.lang = 'my';
       saveDB();
@@ -1713,22 +1960,6 @@ async function handleEvent(event) {
       session.lang = 'en';
       saveDB();
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ Language set to English!' }] });
-    }
-
-    // Handle user typing corrected ingredients after clicking Edit
-    if (session.waitingForPantryEdit) {
-      session.waitingForPantryEdit = false;
-      session.lastPromptType = 'text';
-      session.lastText = rawText;
-      session.lastImageBase64 = null;
-      recordPantryTrends(rawText, []);
-      saveDB();
-      if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-      const carousel = await generateRecipesForSession(session);
-      return messagingClient.replyMessage({
-        replyToken: event.replyToken,
-        messages: [{ type: 'text', text: `✅ Updated ingredients: "${rawText}"` }, carousel],
-      });
     }
 
     if (lower === 'help' || lower === 'menu' || lower === 'hi' || lower === 'hello' || lower === 'สวัสดี' || lower === 'မင်္ဂလာပါ') {
@@ -1782,6 +2013,10 @@ async function handleEvent(event) {
   }
 
   if (event.message.type === 'image') {
+    // A new photo cancels any half-finished ingredient edit
+    session.pantryEditMode = null;
+    session.pantryBatchId = null;
+
     if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
     const base64Image = await getMessageBase64(event.message.id);
 
@@ -1806,7 +2041,7 @@ async function handleEvent(event) {
       : ['chicken breast', 'garlic', 'eggs', 'rice'];
 
     const batchId = `${Date.now()}`;
-    pendingPantryItems.set(batchId, detectedIngredients);
+    pendingPantryItems.set(batchId, [...detectedIngredients]);
     session.lastImageBase64 = base64Image;
     session.lastPromptType = 'image';
     saveDB();
