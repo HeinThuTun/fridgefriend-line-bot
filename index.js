@@ -372,9 +372,10 @@ async function getMessageBase64(messageId) {
 // --- Real Food Photo Resolver (Live Pexels API -> Exact TheMealDB Match -> Category Savory Photo) ---
 async function getRecipeImageUrl(recipe, usedUrls = new Set()) {
   const exactDish = (recipe.canonicalDish || '').trim();
+  const mealDbMatch = (recipe.mealDbDish || '').trim();
   const mainIngredient = (recipe.mainIngredient || 'chicken').trim().toLowerCase();
 
-  // 1. Live Pexels Food Photography Search (When PEXELS_API_KEY is set in Render Env Vars, returns 100% real dish photo)
+  // 1. Live Pexels Food Photography Search (When PEXELS_API_KEY is set in Render Env Vars)
   const pexelsKey = process.env.PEXELS_API_KEY?.trim();
   if (pexelsKey && exactDish) {
     try {
@@ -393,10 +394,10 @@ async function getRecipeImageUrl(recipe, usedUrls = new Set()) {
     } catch {}
   }
 
-  // 2. Exact Dish Match in TheMealDB
-  if (exactDish) {
+  // 2. Search TheMealDB using Gemini's mapped mealDbDish first, then canonicalDish
+  for (const query of [mealDbMatch, exactDish].filter(Boolean)) {
     try {
-      const res = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(exactDish)}`);
+      const res = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(query)}`);
       if (res.ok) {
         const data = await res.json();
         const hit = (data.meals || []).find(
@@ -411,9 +412,9 @@ async function getRecipeImageUrl(recipe, usedUrls = new Set()) {
   }
 
   // 3. Savory Category Photo in TheMealDB (Matches Beef / Pasta / Seafood / Pork / Vegetarian / Chicken)
-  const text = `${exactDish} ${mainIngredient}`.toLowerCase();
+  const text = `${exactDish} ${recipe.title || ''} ${mainIngredient}`.toLowerCase();
   let category = 'Chicken';
-  if (/pasta|spaghetti|noodle|macaroni/.test(text)) category = 'Pasta';
+  if (/pasta|spaghetti|noodle|macaroni|bolognese/.test(text)) category = 'Pasta';
   else if (/beef|steak/.test(text)) category = 'Beef';
   else if (/pork|bacon/.test(text)) category = 'Pork';
   else if (/shrimp|prawn|fish|salmon|seafood/.test(text)) category = 'Seafood';
@@ -773,6 +774,7 @@ async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterSt
     : [{
         title: 'Teriyaki Chicken Casserole',
         emoji: '🍳',
+        mealDbDish: 'Teriyaki Chicken Casserole',
         canonicalDish: 'Teriyaki Chicken Casserole',
         mainIngredient: 'chicken',
         calories: 460,
@@ -1152,7 +1154,7 @@ async function generateRecipesForSession(session, filterStyle = null) {
 LANGUAGE RULE (CRITICAL):
 - Detect the language of the user's input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English).
 - Write "title", "time", "allIngredients", "missingItems", and "steps" in THAT EXACT SAME LANGUAGE (e.g., if the user writes or speaks in Burmese, write natural Burmese; if in Thai, write natural Thai; if in English or an image without text, write in English).
-- ALWAYS keep "canonicalDish" and "mainIngredient" in ENGLISH without adjectives.
+- ALWAYS keep "canonicalDish", "mealDbDish", and "mainIngredient" in ENGLISH.
 
 IMPORTANT INGREDIENT RULE:
 - Compare EVERY ingredient required to cook the dish (including cooking oil, sauces, seasonings, sugar, salt, aromatics, vegetables, and rice/noodles) against ONLY what the user explicitly provided.
@@ -1165,7 +1167,8 @@ Return ONLY valid JSON (no markdown) matching this exact format:
     {
       "title": "Dish Name in user's language",
       "emoji": "🍗",
-      "canonicalDish": "clean 1-3 word ENGLISH dish name without adjectives (e.g., Spaghetti Bolognese, Pad Thai, Green Curry, Shakshuka, Beef Lo Mein, Teriyaki Chicken Casserole, Garlic Chicken Stir Fry)",
+      "mealDbDish": "pick the closest real dish from: Spaghetti Bolognese, Beef Lo Mein, Beef Stroganoff, Chicken Alfredo Primavera, Teriyaki Chicken Casserole, Thai Green Curry, Pad See Ew, Egg Drop Soup, Shakshuka, Pork Chop, Salmon Avocado Salad, Vegetable Fried Rice",
+      "canonicalDish": "clean 1-3 word ENGLISH dish name (e.g., Beef Pasta Skillet, Chicken Stir Fry)",
       "mainIngredient": "single primary ingredient in lowercase ENGLISH (e.g., chicken, egg, pork, shrimp, beef, salmon, tofu, pasta)",
       "calories": 520,
       "protein": 44,
