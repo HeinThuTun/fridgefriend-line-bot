@@ -101,9 +101,9 @@ const B2B_PARTNER_CODES = {
 function recordPantryTrends(rawIngredientsText = '', missingItemsList = []) {
   if (rawIngredientsText) {
     const items = rawIngredientsText
-      .split(/[,;\n]+/)
+      .split(/[,;\n၊]+/)
       .map((s) => s.trim().toLowerCase())
-      .filter((s) => s.length >= 2 && s.length <= 30);
+      .filter((s) => s.length >= 2 && s.length <= 35);
     for (const item of items) {
       db.analytics.ingredientCounts[item] = (db.analytics.ingredientCounts[item] || 0) + 1;
     }
@@ -367,55 +367,92 @@ async function getMessageBase64(messageId) {
   return Buffer.concat(chunks).toString('base64');
 }
 
-// --- Accurate, Deduplicated Dish Photo Resolver ---
+// --- Accurate, Deduplicated Dish Photo Resolver (Always Uses English canonicalDish/mainIngredient) ---
 async function getRecipeImageUrl(recipe, usedUrls = new Set()) {
   const canonicalDish = (recipe.canonicalDish || '').trim();
-  const mainIngredient = (recipe.mainIngredient || 'chicken').trim().toLowerCase();
+  const mainIngredient = (recipe.mainIngredient || '').trim().toLowerCase();
   const title = (recipe.title || '').trim();
 
+  // 1. Smart Wikipedia Search (handles fuzzy & Asian dish names like "Pad Kra Pao", "Omelette", "Garlic Chicken")
+  for (const query of [canonicalDish, title].filter(Boolean)) {
+    try {
+      const wikiSearchUrl = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query + ' food dish')}&gsrlimit=4&prop=pageimages&pithumbsize=800&format=json&origin=*`;
+      const res = await fetch(wikiSearchUrl, { headers: { 'User-Agent': 'FridgeFriendBot/1.0 (https://line.me)' } });
+      const data = await res.json();
+      const pages = Object.values(data?.query?.pages || {}).sort((a, b) => (a.index || 99) - (b.index || 99));
+      for (const page of pages) {
+        const thumb = page?.thumbnail?.source;
+        if (
+          thumb &&
+          /\.(jpg|jpeg|png)$/i.test(thumb) &&
+          !/(logo|icon|flag|map|diagram|portrait|person)/i.test(thumb) &&
+          !usedUrls.has(thumb)
+        ) {
+          usedUrls.add(thumb);
+          return thumb;
+        }
+      }
+    } catch {}
+  }
+
+  // 2. TheMealDB Exact Dish Name Search
   for (const query of [canonicalDish, title].filter(Boolean)) {
     try {
       const res = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(query)}`);
       const data = await res.json();
       const hit = (data.meals || []).find((m) => m?.strMealThumb && !usedUrls.has(m.strMealThumb));
-      if (hit) { usedUrls.add(hit.strMealThumb); return hit.strMealThumb; }
+      if (hit) {
+        usedUrls.add(hit.strMealThumb);
+        return hit.strMealThumb;
+      }
     } catch {}
   }
 
-  if (canonicalDish) {
-    try {
-      const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(canonicalDish)}&redirects=1&prop=pageimages&pithumbsize=800&format=json&origin=*`;
-      const res = await fetch(wikiUrl, { headers: { 'User-Agent': 'FridgeFriendBot/1.0 (https://line.me)' } });
-      const data = await res.json();
-      const thumb = Object.values(data?.query?.pages || {})[0]?.thumbnail?.source;
-      if (thumb && !thumb.endsWith('.svg') && !usedUrls.has(thumb)) { usedUrls.add(thumb); return thumb; }
-    } catch {}
-  }
+  // 3. Wikimedia Commons Real Food Photo Search (exact English dish + main ingredient)
+  const commonsQuery = `${canonicalDish || title} ${mainIngredient} food`.trim();
+  try {
+    const commonsUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(commonsQuery)}&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url&iiurlwidth=800&format=json&origin=*`;
+    const res = await fetch(commonsUrl, { headers: { 'User-Agent': 'FridgeFriendBot/1.0 (https://line.me)' } });
+    const data = await res.json();
+    const pages = Object.values(data?.query?.pages || {});
+    for (const page of pages) {
+      const thumb = page?.imageinfo?.[0]?.thumburl || page?.imageinfo?.[0]?.url;
+      if (thumb && /\.(jpg|jpeg|png)$/i.test(thumb) && !usedUrls.has(thumb)) {
+        usedUrls.add(thumb);
+        return thumb;
+      }
+    }
+  } catch {}
 
+  // 4. Ingredient-Matched TheMealDB Fallback (never defaults to Chicken for non-chicken dishes!)
   const cleanIngredient = mainIngredient.split(/\s+/).pop();
-  try {
-    const res = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(cleanIngredient)}`);
-    const data = await res.json();
-    const available = (data.meals || []).filter((m) => m?.strMealThumb && !usedUrls.has(m.strMealThumb));
-    if (available.length > 0) {
-      const pick = available[Math.floor(Math.random() * Math.min(available.length, 8))];
-      usedUrls.add(pick.strMealThumb);
-      return pick.strMealThumb;
-    }
-  } catch {}
+  if (cleanIngredient) {
+    try {
+      const res = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(cleanIngredient)}`);
+      const data = await res.json();
+      const available = (data.meals || []).filter((m) => m?.strMealThumb && !usedUrls.has(m.strMealThumb));
+      if (available.length > 0) {
+        usedUrls.add(available[0].strMealThumb);
+        return available[0].strMealThumb;
+      }
+    } catch {}
+  }
 
-  try {
-    const res = await fetch('https://www.themealdb.com/api/json/v1/1/filter.php?c=Chicken');
-    const data = await res.json();
-    const available = (data.meals || []).filter((m) => m?.strMealThumb && !usedUrls.has(m.strMealThumb));
-    if (available.length > 0) {
-      const pick = available[Math.floor(Math.random() * Math.min(available.length, 10))];
-      usedUrls.add(pick.strMealThumb);
-      return pick.strMealThumb;
-    }
-  } catch {}
-
-  return 'https://www.themealdb.com/images/media/meals/wyxwsp1486979827.jpg';
+  // 5. Category-Matched Safe Fallback
+  const fallbackByIngredient = {
+    chicken: 'https://www.themealdb.com/images/media/meals/wyxwsp1486979827.jpg',
+    egg: 'https://www.themealdb.com/images/media/meals/1550441882.jpg',
+    beef: 'https://www.themealdb.com/images/media/meals/sytuqu1511553755.jpg',
+    pork: 'https://www.themealdb.com/images/media/meals/ytpstt1511814614.jpg',
+    shrimp: 'https://www.themealdb.com/images/media/meals/1529446352.jpg',
+    fish: 'https://www.themealdb.com/images/media/meals/1548772327.jpg',
+    salmon: 'https://www.themealdb.com/images/media/meals/1548772327.jpg',
+    pasta: 'https://www.themealdb.com/images/media/meals/ustsqw1468250014.jpg',
+    noodle: 'https://www.themealdb.com/images/media/meals/1529444830.jpg',
+    tofu: 'https://www.themealdb.com/images/media/meals/rvxxuy1468312893.jpg',
+    vegetable: 'https://www.themealdb.com/images/media/meals/rvxxuy1468312893.jpg',
+  };
+  return fallbackByIngredient[cleanIngredient] || 'https://www.themealdb.com/images/media/meals/1529444830.jpg';
 }
 
 async function getAvailableModels() {
@@ -483,10 +520,10 @@ function buildWelcomeCard() {
         layout: 'vertical',
         spacing: 'sm',
         contents: [
-          { type: 'text', text: 'Try any input mode right now:', size: 'sm', weight: 'bold', color: '#111827' },
+          { type: 'text', text: 'Try any input mode (English / ไทย / မြန်မာ):', size: 'sm', weight: 'bold', color: '#111827', wrap: true },
           { type: 'text', text: '📸 Snap a fridge photo or grocery receipt', size: 'xs', color: '#374151', wrap: true },
-          { type: 'text', text: '🎙️ Hold the mic & say what ingredients you have', size: 'xs', color: '#374151', wrap: true },
-          { type: 'text', text: '✍️ Type ingredients (e.g. "chicken, garlic")', size: 'xs', color: '#374151', wrap: true },
+          { type: 'text', text: '🎙️ Hold the mic & speak in English, Thai, or Burmese', size: 'xs', color: '#374151', wrap: true },
+          { type: 'text', text: '✍️ Type ingredients in any language (e.g. "chicken, garlic", "อกไก่ กระเทียม", "ကြက်သား ကြက်သွန်ဖြူ")', size: 'xs', color: '#374151', wrap: true },
           { type: 'text', text: '🏷️ Claim 30% Off Zero-Waste Supermarket Flash Deals', size: 'xs', color: '#374151', wrap: true },
         ],
       },
@@ -524,7 +561,6 @@ function buildB2BRevenueCard() {
   const coupons = db.analytics.couponClaims || 0;
   const gymSeats = db.analytics.gymActivations || 0;
 
-  // Projected monthly / demo value calculation for clear presentation explanation
   const estThb = affViews * 15 + adClicks * 5 + coupons * 20 + gymSeats * 80;
 
   const topPantry = Object.entries(db.analytics.ingredientCounts || {})
@@ -561,7 +597,6 @@ function buildB2BRevenueCard() {
         layout: 'vertical',
         spacing: 'md',
         contents: [
-          // Top KPI Highlight Box
           {
             type: 'box',
             layout: 'horizontal',
@@ -789,12 +824,12 @@ async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterSt
 
     recordPantryTrends('', missing);
 
-    const sponsor = getContextualSponsor(`${title} ${recipe.mainIngredient || ''}`, filterStyle, usedSponsors);
+    const sponsor = getContextualSponsor(`${title} ${recipe.canonicalDish || ''} ${recipe.mainIngredient || ''}`, filterStyle, usedSponsors);
     const normalizedRecipe = { ...recipe, id: recipeId, title, time, calories, protein, costThb, macros, allIngredients, missingItems: missing, steps, sponsor };
     recipeStore.set(recipeId, normalizedRecipe);
 
     const imageUrl = await getRecipeImageUrl(normalizedRecipe, usedUrls);
-    const hasMissing = missing[0] !== 'None — ready to cook!';
+    const hasMissing = missing[0] !== 'None — ready to cook!' && !/^none/i.test(missing[0]);
 
     bubbles.push({
       type: 'bubble',
@@ -829,7 +864,7 @@ async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterSt
             spacing: 'sm',
             contents: [
               { type: 'text', text: '🛒 Missing:', size: 'xs', color: '#888888', flex: 2 },
-              { type: 'text', text: hasMissing ? `${missing.length} items (${missing.join(', ')})` : 'None — ready to cook!', size: 'xs', color: hasMissing ? '#DC2626' : '#059669', flex: 5, wrap: true },
+              { type: 'text', text: hasMissing ? `${missing.length} items (${missing.join(', ')})` : missing[0], size: 'xs', color: hasMissing ? '#DC2626' : '#059669', flex: 5, wrap: true },
             ],
           },
           {
@@ -922,7 +957,7 @@ function buildSingleStepCard(recipe, stepIndex) {
   const total = recipe.steps.length;
   const currentStep = recipe.steps[stepIndex] || 'Enjoy your meal!';
   const isLast = stepIndex >= total - 1;
-  const timeMatch = currentStep.match(/(\d+)\s*(?:minute|minutes|min|mins|m)\b/i);
+  const timeMatch = currentStep.match(/(\d+)\s*(?:minute|minutes|min|mins|m|นาที|မိနစ်)\b/i);
   const detectedMinutes = timeMatch ? Math.min(parseInt(timeMatch[1], 10), 60) : null;
   const footerButtons = [];
 
@@ -1103,7 +1138,7 @@ function buildShoppingListCard(title, items, allIngredients = []) {
       body: {
         type: 'box', layout: 'vertical',
         contents: [
-          { type: 'text', text: `🛒 Missing Ingredients (${items[0] === 'None — ready to cook!' ? 0 : items.length})`, weight: 'bold', size: 'lg', color: '#10B981' },
+          { type: 'text', text: `🛒 Missing Ingredients (${/^none/i.test(items[0] || '') ? 0 : items.length})`, weight: 'bold', size: 'lg', color: '#10B981' },
           { type: 'text', text: title, size: 'xs', color: '#6B7280', margin: 'xs', wrap: true },
           { type: 'separator', margin: 'md' },
           ...missingRows,
@@ -1124,7 +1159,7 @@ function buildShoppingListCard(title, items, allIngredients = []) {
   };
 }
 
-// --- Gemini AI Generators ---
+// --- Gemini AI Generators (Auto-Matches Burmese / Thai / English Output) ---
 async function generateRecipesForSession(session, filterStyle = null) {
   const styleInstructions = {
     budget_60: 'Focus strictly on STUDENT BUDGET-FRIENDLY meals costing UNDER 60 THB per serving using affordable local Thai ingredients.',
@@ -1135,6 +1170,11 @@ async function generateRecipesForSession(session, filterStyle = null) {
   const extraRule = filterStyle && styleInstructions[filterStyle] ? styleInstructions[filterStyle] : '';
 
   const schemaPrompt = `${extraRule}
+LANGUAGE RULE (CRITICAL):
+- Detect the language of the user's input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English).
+- Write "title", "time", "allIngredients", "missingItems", and "steps" in THAT EXACT SAME LANGUAGE (e.g., if the user writes or speaks in Burmese, write natural Burmese; if in Thai, write natural Thai; if in English or an image without text, write in English).
+- ALWAYS keep "canonicalDish" and "mainIngredient" in ENGLISH so photo lookup works accurately.
+
 IMPORTANT INGREDIENT RULE:
 - Compare EVERY ingredient required to cook the dish (including cooking oil, sauces, seasonings, sugar, salt, aromatics, vegetables, and rice/noodles) against ONLY what the user explicitly provided.
 - Put EVERY SINGLE ingredient the user did NOT mention or show in the photo inside "missingItems" with exact quantities (do NOT cap at 1 or 2 items—list ALL 3, 4, 5+ missing items honestly!).
@@ -1144,17 +1184,17 @@ Return ONLY valid JSON (no markdown) matching this exact format:
 {
   "recipes": [
     {
-      "title": "Dish Name",
+      "title": "Dish Name in user's language",
       "emoji": "🍗",
-      "canonicalDish": "standard 1-2 word culinary dish name for photo lookup (e.g., Pad Kra Pao, Chicken Teriyaki, Fried Rice, Omelette, Carbonara, Tom Yum)",
-      "mainIngredient": "single primary ingredient in lowercase (e.g., chicken, egg, pork, shrimp, beef, salmon, tofu, pasta)",
+      "canonicalDish": "standard 1-2 word ENGLISH culinary dish name for photo lookup (e.g., Pad Kra Pao, Chicken Teriyaki, Fried Rice, Omelette, Carbonara, Tom Yum)",
+      "mainIngredient": "single primary ingredient in lowercase ENGLISH (e.g., chicken, egg, pork, shrimp, beef, salmon, tofu, pasta)",
       "calories": 520,
       "protein": 44,
       "costThb": 48,
-      "time": "5m prep | 12m cook",
-      "allIngredients": ["200g chicken breast", "2 cloves garlic", "1 tbsp soy sauce", "1 tbsp oyster sauce", "1 tsp sugar", "1 tbsp cooking oil", "1 cup steamed rice"],
-      "missingItems": ["1 tbsp soy sauce", "1 tbsp oyster sauce", "1 tsp sugar", "1 tbsp cooking oil", "1 cup steamed rice"],
-      "steps": ["Step 1 instruction", "Step 2 instruction", "Step 3 instruction", "Step 4 instruction"]
+      "time": "5m prep | 12m cook (in user's language)",
+      "allIngredients": ["200g chicken breast", "2 cloves garlic", "1 tbsp soy sauce"],
+      "missingItems": ["1 tbsp soy sauce", "1 tbsp oyster sauce", "1 cup steamed rice"],
+      "steps": ["Step 1 instruction in user's language", "Step 2 instruction", "Step 3 instruction"]
     }
   ]
 }
@@ -1172,7 +1212,8 @@ Suggest 3 practical, delicious recipes.`;
 
 async function generateMealPlanForSession(session) {
   const planPrompt = `Create a smart 3-Day Zero-Waste Meal Plan (Lunch & Dinner for 3 days = 6 meals total) that uses up perishable ingredients first so nothing spoils.
-For EVERY day, list the real, specific grocery/food ingredients needed to cook that day's Lunch & Dinner inside "ingredientsNeeded" (with practical quantities like "400g chicken breast", "6 eggs", "1 bunch holy basil"), and put the complete combined shopping list across all 3 days inside "consolidatedShoppingList".
+LANGUAGE RULE: If the user's ingredients are in Burmese (မြန်မာဘာသာ) or Thai (ภาษาไทย), write "focus", "lunch", "dinner", "ingredientsNeeded", "wasteTip", and "consolidatedShoppingList" in THAT SAME LANGUAGE; otherwise write in English.
+For EVERY day, list the real, specific grocery/food ingredients needed to cook that day's Lunch & Dinner inside "ingredientsNeeded" (with practical quantities), and put the complete combined shopping list across all 3 days inside "consolidatedShoppingList".
 Return ONLY valid JSON (no markdown) matching this exact format:
 {
   "days": [
@@ -1330,7 +1371,7 @@ async function handleEvent(event) {
     const rawText = event.message.text.trim();
     const lower = rawText.toLowerCase();
 
-    if (lower === 'help' || lower === 'menu' || lower === 'hi' || lower === 'hello') {
+    if (lower === 'help' || lower === 'menu' || lower === 'hi' || lower === 'hello' || lower === 'สวัสดี' || lower === 'မင်္ဂလာပါ') {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildWelcomeCard()] });
     }
 
@@ -1375,7 +1416,7 @@ async function handleEvent(event) {
       });
     }
 
-    if (lower === 'unredeem' || lower === 'cancel gym') {
+    if (lower === 'unredeem' || lower === 'cancel gym' || lower === 'cancel') {
       if (!session.gymPartner) {
         return messagingClient.replyMessage({
           replyToken: event.replyToken,
@@ -1400,7 +1441,7 @@ async function handleEvent(event) {
         ],
       });
     }
-    
+
     // Stream 5 + Executive Flex Card: B2B Revenue & Analytics Dashboard
     if (lower === 'revenue' || lower === 'ads' || lower === 'business') {
       return messagingClient.replyMessage({
@@ -1476,7 +1517,7 @@ async function handleEvent(event) {
 
     const transcribeRes = await generateWithFallback([
       { inlineData: { mimeType: 'audio/m4a', data: base64Audio } },
-      'Extract ONLY the food ingredients and cooking preferences spoken in this voice note as a concise comma-separated phrase.',
+      'Extract ONLY the food ingredients and cooking preferences spoken in this voice note as a concise comma-separated phrase, preserving the exact spoken language (Burmese, Thai, or English).',
     ]);
 
     const spokenIngredients = transcribeRes.text.trim();
