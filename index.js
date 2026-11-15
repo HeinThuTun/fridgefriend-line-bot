@@ -20,7 +20,9 @@ const DB_FILE = path.join(__dirname, 'db.json');
 const recipeStore = new Map();
 const mealPlanStore = new Map();
 const pendingReceiptItems = new Map();
+const generatedImageCache = new Map(); // Stores exact dish JPEG/PNG buffers for LINE Flex cards
 let cachedModels = null;
+let cachedImageModel = null;
 
 // --- Multi-User Persistence + Full 5-Stream B2B Analytics (db.json) ---
 function loadDB() {
@@ -352,6 +354,16 @@ async function setupRichMenu() {
 
 app.get('/', (req, res) => res.send('FridgeFriend Pro LINE Bot is running!'));
 
+// --- Serve Exact Generated Dish Photos Directly to LINE Flex Cards ---
+app.get('/dish-img/:id', (req, res) => {
+  const key = req.params.id.replace(/\.(jpg|jpeg|png)$/i, '');
+  const entry = generatedImageCache.get(key);
+  if (!entry) return res.status(404).send('Image not found');
+  res.setHeader('Content-Type', entry.mimeType || 'image/jpeg');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  return res.send(entry.buffer);
+});
+
 app.post('/webhook', line.middleware(lineConfig), (req, res) => {
   console.log('📩 Webhook hit! Events:', req.body.events.length);
   res.status(200).end();
@@ -367,45 +379,91 @@ async function getMessageBase64(messageId) {
   return Buffer.concat(chunks).toString('base64');
 }
 
-// --- Live API Dish Photo Resolver (Zero Guessed URLs — Always Returns Real 200 OK Dish Photos) ---
-async function getRecipeImageUrl(recipe, usedUrls = new Set()) {
-  const wikiArticle = (recipe.wikiArticle || '').trim();
-  const canonicalDish = (recipe.canonicalDish || '').trim();
-  const mainIngredient = (recipe.mainIngredient || 'chicken').trim().toLowerCase();
-  const title = (recipe.title || '').trim();
+// --- Discover Available Gemini Image Model Dynamically ---
+async function getImageCapableModel() {
+  if (cachedImageModel) return cachedImageModel;
+  try {
+    const pager = await ai.models.list();
+    const candidates = [];
+    for await (const m of pager) {
+      const name = m.name.replace('models/', '');
+      if (name.includes('image') || name.includes('imagen')) candidates.push(name);
+    }
+    const preferred = candidates.find((n) => n.includes('gemini-2.5-flash-image'))
+      || candidates.find((n) => n.includes('flash-image'))
+      || candidates.find((n) => n.includes('imagen'))
+      || candidates[0];
+    if (preferred) {
+      cachedImageModel = preferred;
+      console.log('🎨 Discovered image model:', cachedImageModel);
+      return cachedImageModel;
+    }
+  } catch (e) {
+    console.warn('⚠️ Image model discovery failed:', e.message);
+  }
+  return 'gemini-2.5-flash-image';
+}
 
-  const wikiHeaders = {
-    'User-Agent': 'FridgeFriendLineBot/1.0 (https://fridgefriend-line-bot.onrender.com; contact@fridgefriend.app)',
-    Accept: 'application/json',
-  };
+// --- 100% Exact Dish Photo Generator Using Your Own Gemini API Key ---
+async function getRecipeImageUrl(recipe, usedUrls = new Set(), publicBaseUrl = '') {
+  const dishDesc = (recipe.canonicalDish || recipe.title || 'homemade stir fry dish').trim();
+  const baseUrl = (process.env.RENDER_EXTERNAL_URL || publicBaseUrl || '').replace(/\/$/, '');
 
-  // 1. Exact Wikipedia Culinary Article Lookup (e.g. "Pad kaphrao", "Omelette", "Fried rice", "Tom yum", "Green curry")
-  for (const article of [wikiArticle, canonicalDish, title].filter(Boolean)) {
+  // 1. Primary: Generate Exact Custom Dish Photo via Gemini Image Generation & Serve from Render
+  if (baseUrl) {
     try {
-      const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(article)}&redirects=1&prop=pageimages&pithumbsize=800&format=json&origin=*`;
-      const res = await fetch(url, { headers: wikiHeaders });
-      if (res.ok) {
-        const data = await res.json();
-        const page = Object.values(data?.query?.pages || {})[0];
-        const thumb = page?.thumbnail?.source;
-        if (thumb && /\.(jpg|jpeg|png)$/i.test(thumb) && !usedUrls.has(thumb)) {
-          console.log(`🖼️ Photo hit (Wiki exact "${article}"):`, thumb);
-          usedUrls.add(thumb);
-          return thumb;
+      const imgModel = await getImageCapableModel();
+      const prompt = `Appetizing overhead food photography of ${dishDesc}, freshly cooked and plated on a clean ceramic dish on a wooden table, warm natural daylight, sharp focus, realistic restaurant presentation, no text, no labels, no watermark.`;
+
+      let base64Data = null;
+      let mimeType = 'image/jpeg';
+
+      if (imgModel.includes('imagen')) {
+        const res = await ai.models.generateImages({
+          model: imgModel,
+          prompt,
+          config: { numberOfImages: 1, aspectRatio: '16:9', outputMimeType: 'image/jpeg' },
+        });
+        base64Data = res?.generatedImages?.[0]?.image?.imageBytes;
+      } else {
+        const res = await ai.models.generateContent({
+          model: imgModel,
+          contents: prompt,
+          config: { responseModalities: ['IMAGE'] },
+        });
+        const parts = res?.candidates?.[0]?.content?.parts || [];
+        const imgPart = parts.find((p) => p?.inlineData?.data);
+        if (imgPart) {
+          base64Data = imgPart.inlineData.data;
+          mimeType = imgPart.inlineData.mimeType || 'image/jpeg';
         }
       }
-    } catch {}
+
+      if (base64Data) {
+        const imgId = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+        generatedImageCache.set(imgId, { buffer: Buffer.from(base64Data, 'base64'), mimeType });
+        if (generatedImageCache.size > 60) {
+          const oldestKey = generatedImageCache.keys().next().value;
+          generatedImageCache.delete(oldestKey);
+        }
+        const servedUrl = `${baseUrl}/dish-img/${imgId}.jpg`;
+        console.log(`🎨 Generated exact dish image for "${dishDesc}":`, servedUrl);
+        usedUrls.add(servedUrl);
+        return servedUrl;
+      }
+    } catch (e) {
+      console.warn(`⚠️ Gemini image gen fallback for "${dishDesc}":`, e.message);
+    }
   }
 
-  // 2. TheMealDB Exact Dish Name Search (live CDN URLs, 100% food photos)
-  for (const query of [canonicalDish, wikiArticle, title].filter(Boolean)) {
+  // 2. Fallback: Exact Dish Name Search in TheMealDB (Only Exact Dish Matches — Never Generic Ingredient Desserts!)
+  for (const query of [recipe.canonicalDish, recipe.title].filter(Boolean)) {
     try {
       const res = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(query)}`);
       if (res.ok) {
         const data = await res.json();
         const hit = (data.meals || []).find((m) => m?.strMealThumb && !usedUrls.has(m.strMealThumb));
         if (hit) {
-          console.log(`🖼️ Photo hit (MealDB dish "${query}"):`, hit.strMealThumb);
           usedUrls.add(hit.strMealThumb);
           return hit.strMealThumb;
         }
@@ -413,57 +471,15 @@ async function getRecipeImageUrl(recipe, usedUrls = new Set()) {
     } catch {}
   }
 
-  // 3. Wikipedia Top-1 Search for Exact Dish Article
-  for (const query of [wikiArticle, canonicalDish].filter(Boolean)) {
-    try {
-      const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=3&prop=pageimages&pithumbsize=800&format=json&origin=*`;
-      const res = await fetch(searchUrl, { headers: wikiHeaders });
-      if (res.ok) {
-        const data = await res.json();
-        const pages = Object.values(data?.query?.pages || {}).sort((a, b) => (a.index || 99) - (b.index || 99));
-        for (const p of pages) {
-          const thumb = p?.thumbnail?.source;
-          if (
-            thumb &&
-            /\.(jpg|jpeg|png)$/i.test(thumb) &&
-            !/(logo|icon|flag|map|diagram|portrait|commons-logo)/i.test(thumb) &&
-            !usedUrls.has(thumb)
-          ) {
-            console.log(`🖼️ Photo hit (Wiki search "${query}" -> "${p.title}"):`, thumb);
-            usedUrls.add(thumb);
-            return thumb;
-          }
-        }
-      }
-    } catch {}
-  }
-
-  // 4. TheMealDB Ingredient-Matched Real Dish Photo (e.g., egg -> Omelette/Shakshuka, chicken -> Teriyaki Chicken)
-  const cleanIng = mainIngredient.split(/\s+/).pop();
-  if (cleanIng) {
-    try {
-      const res = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(cleanIng)}`);
-      if (res.ok) {
-        const data = await res.json();
-        const available = (data.meals || []).filter((m) => m?.strMealThumb && !usedUrls.has(m.strMealThumb));
-        if (available.length > 0) {
-          console.log(`🖼️ Photo hit (MealDB ingredient "${cleanIng}"):`, available[0].strMealThumb);
-          usedUrls.add(available[0].strMealThumb);
-          return available[0].strMealThumb;
-        }
-      }
-    } catch {}
-  }
-
-  // 5. Verified Live TheMealDB Fallback URLs (Confirmed 200 OK on MealDB CDN)
-  const verifiedMealDbFallbacks = [
-    'https://www.themealdb.com/images/media/meals/wvpsxx1468256321.jpg', // Teriyaki Chicken Casserole
-    'https://www.themealdb.com/images/media/meals/1550441882.jpg',       // Breakfast Potatoes & Eggs
-    'https://www.themealdb.com/images/media/meals/1529444830.jpg',       // Beef Lo Mein Noodles
+  // 3. Final Verified Savory Dish Fallbacks (Guaranteed Real Savory Meals, Never Cakes!)
+  const savoryFallbacks = [
+    'https://www.themealdb.com/images/media/meals/wvpsxx1468256321.jpg',
+    'https://www.themealdb.com/images/media/meals/1550441882.jpg',
+    'https://www.themealdb.com/images/media/meals/1529444830.jpg',
   ];
-  const fallback = verifiedMealDbFallbacks.find((u) => !usedUrls.has(u)) || verifiedMealDbFallbacks[0];
-  usedUrls.add(fallback);
-  return fallback;
+  const pick = savoryFallbacks.find((u) => !usedUrls.has(u)) || savoryFallbacks[0];
+  usedUrls.add(pick);
+  return pick;
 }
 
 async function getAvailableModels() {
@@ -799,14 +815,13 @@ function buildFlashDealCard() {
   };
 }
 
-async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = '') {
+async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = '', publicBaseUrl = '') {
   const safeRecipes = Array.isArray(recipes) && recipes.length > 0
     ? recipes.slice(0, 5)
     : [{
         title: 'Quick Garlic Chicken Stir-Fry',
         emoji: '🍳',
-        wikiArticle: 'Pad kaphrao',
-        canonicalDish: 'Chicken Stir Fry',
+        canonicalDish: 'Thai Garlic Chicken Stir Fry with Jasmine Rice',
         mainIngredient: 'chicken',
         calories: 460,
         protein: 38,
@@ -819,7 +834,7 @@ async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterSt
 
   const usedUrls = new Set();
   const usedSponsors = new Set();
-  const bubbles = [];
+  const prepared = [];
 
   for (let idx = 0; idx < safeRecipes.length; idx++) {
     const recipe = safeRecipes[idx];
@@ -839,11 +854,20 @@ async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterSt
     const sponsor = getContextualSponsor(`${title} ${recipe.canonicalDish || ''} ${recipe.mainIngredient || ''}`, filterStyle, usedSponsors);
     const normalizedRecipe = { ...recipe, id: recipeId, title, time, calories, protein, costThb, macros, allIngredients, missingItems: missing, steps, sponsor };
     recipeStore.set(recipeId, normalizedRecipe);
+    prepared.push(normalizedRecipe);
+  }
 
-    const imageUrl = await getRecipeImageUrl(normalizedRecipe, usedUrls);
+  // Generate all 3 exact dish photos in parallel for maximum speed!
+  const imageUrls = await Promise.all(
+    prepared.map((r) => getRecipeImageUrl(r, usedUrls, publicBaseUrl))
+  );
+
+  const bubbles = prepared.map((normalizedRecipe, idx) => {
+    const { id: recipeId, title, time, macros, missingItems: missing, sponsor } = normalizedRecipe;
+    const imageUrl = imageUrls[idx];
     const hasMissing = missing[0] !== 'None — ready to cook!' && !/^none/i.test(missing[0]);
 
-    bubbles.push({
+    return {
       type: 'bubble',
       size: 'mega',
       hero: { type: 'image', url: imageUrl, size: 'full', aspectRatio: '20:13', aspectMode: 'cover' },
@@ -852,7 +876,7 @@ async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterSt
         layout: 'vertical',
         spacing: 'sm',
         contents: [
-          { type: 'text', text: `${recipe.emoji || '🍳'} ${title}`, weight: 'bold', size: 'lg', wrap: true },
+          { type: 'text', text: `${normalizedRecipe.emoji || '🍳'} ${title}`, weight: 'bold', size: 'lg', wrap: true },
           {
             type: 'box',
             layout: 'vertical',
@@ -911,8 +935,8 @@ async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterSt
           },
         ],
       },
-    });
-  }
+    };
+  });
 
   const msg = { type: 'flex', altText: 'FridgeFriend Recipe Suggestions 🍳', contents: { type: 'carousel', contents: bubbles } };
   if (includeQuickReplies) msg.quickReply = getFilterQuickReplies();
@@ -1171,8 +1195,8 @@ function buildShoppingListCard(title, items, allIngredients = []) {
   };
 }
 
-// --- Gemini AI Generators (Auto-Matches Burmese / Thai / English Output + Exact Wikipedia Dish Title) ---
-async function generateRecipesForSession(session, filterStyle = null) {
+// --- Gemini AI Generators (Auto-Matches Burmese / Thai / English Output) ---
+async function generateRecipesForSession(session, filterStyle = null, publicBaseUrl = '') {
   const styleInstructions = {
     budget_60: 'Focus strictly on STUDENT BUDGET-FRIENDLY meals costing UNDER 60 THB per serving using affordable local Thai ingredients.',
     high_protein: 'Focus strictly on HIGH-PROTEIN fitness meals (40g+ protein per serving).',
@@ -1185,10 +1209,7 @@ async function generateRecipesForSession(session, filterStyle = null) {
 LANGUAGE RULE (CRITICAL):
 - Detect the language of the user's input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English).
 - Write "title", "time", "allIngredients", "missingItems", and "steps" in THAT EXACT SAME LANGUAGE (e.g., if the user writes or speaks in Burmese, write natural Burmese; if in Thai, write natural Thai; if in English or an image without text, write in English).
-- ALWAYS keep "wikiArticle", "canonicalDish", and "mainIngredient" in ENGLISH so photo lookup works accurately.
-
-PHOTO LOOKUP RULE (CRITICAL):
-- For "wikiArticle", provide the EXACT English Wikipedia article title of the closest real dish (e.g., "Pad kaphrao", "Omelette", "Fried rice", "Tom yum", "Green curry", "Chicken curry", "Pad Thai", "Carbonara", "Shakshuka", "Stir frying", "Mapo tofu", "Hainanese chicken rice").
+- ALWAYS keep "canonicalDish" and "mainIngredient" in ENGLISH so dish photo generation matches the exact food visually.
 
 IMPORTANT INGREDIENT RULE:
 - Compare EVERY ingredient required to cook the dish (including cooking oil, sauces, seasonings, sugar, salt, aromatics, vegetables, and rice/noodles) against ONLY what the user explicitly provided.
@@ -1201,8 +1222,7 @@ Return ONLY valid JSON (no markdown) matching this exact format:
     {
       "title": "Dish Name in user's language",
       "emoji": "🍗",
-      "wikiArticle": "exact English Wikipedia dish article title (e.g., Pad kaphrao, Omelette, Fried rice)",
-      "canonicalDish": "2-3 word ENGLISH dish name (e.g., Pad Kra Pao, Chicken Curry, Garlic Omelette)",
+      "canonicalDish": "clear visual ENGLISH description of the finished plated dish (e.g., Thai Basil Chicken Stir Fry with Fried Egg on Rice, Burmese Chicken and Potato Curry, Crispy Tomato Egg Omelette)",
       "mainIngredient": "single primary ingredient in lowercase ENGLISH (e.g., chicken, egg, pork, shrimp, beef, salmon, tofu, pasta)",
       "calories": 520,
       "protein": 44,
@@ -1214,7 +1234,7 @@ Return ONLY valid JSON (no markdown) matching this exact format:
     }
   ]
 }
-Suggest 3 distinct recipes.`;
+Suggest 3 distinct, practical, delicious recipes.`;
 
   const geminiContents = session.lastPromptType === 'image' && session.lastImageBase64
     ? [{ inlineData: { mimeType: 'image/jpeg', data: session.lastImageBase64 } }, `You are FridgeFriend, an AI chef. Identify the ingredients in this photo and suggest 3 recipes using them. ${schemaPrompt}`]
@@ -1223,7 +1243,7 @@ Suggest 3 distinct recipes.`;
   const response = await generateWithFallback(geminiContents, { responseMimeType: 'application/json' });
   const parsed = JSON.parse(response.text.replace(/```json|```/g, '').trim());
   const recipeList = Array.isArray(parsed) ? parsed : (parsed.recipes || parsed.meals || Object.values(parsed).find(Array.isArray) || []);
-  return buildRecipeCarousel(recipeList, true, filterStyle || '');
+  return buildRecipeCarousel(recipeList, true, filterStyle || '', publicBaseUrl);
 }
 
 async function generateMealPlanForSession(session) {
@@ -1257,7 +1277,7 @@ Return ONLY valid JSON (no markdown) matching this exact format:
 }
 
 // --- Webhook Event Handler ---
-async function handleEvent(event) {
+async function handleEvent(event, publicBaseUrl = '') {
   const userId = event.source?.userId || 'default_user';
   const session = getSession(userId);
 
@@ -1363,7 +1383,7 @@ async function handleEvent(event) {
       session.lastText = items.join(', ');
       recordPantryTrends(session.lastText, []);
       if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-      const carousel = await generateRecipesForSession(session);
+      const carousel = await generateRecipesForSession(session, null, publicBaseUrl);
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `🍳 Cooking with your ${items.length} scanned receipt items:` }, carousel] });
     }
 
@@ -1376,7 +1396,7 @@ async function handleEvent(event) {
     if (action === 'filter') {
       if (!session.lastPromptType) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: 'Send ingredients, a voice note, or a fridge photo first! 🥦📸' }] });
       if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-      const carousel = await generateRecipesForSession(session, params.get('style'));
+      const carousel = await generateRecipesForSession(session, params.get('style'), publicBaseUrl);
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
     }
   }
@@ -1484,7 +1504,7 @@ async function handleEvent(event) {
 
     if (lower === 'saved' || lower === 'cookbook' || lower === 'favorites') {
       if (session.saved.length === 0) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '📖 Your Cookbook is empty! Tap "❤️ Save" on any recipe card to save it here.' }] });
-      const savedCarousel = await buildRecipeCarousel(session.saved, false);
+      const savedCarousel = await buildRecipeCarousel(session.saved, false, '', publicBaseUrl);
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [savedCarousel] });
     }
 
@@ -1494,7 +1514,7 @@ async function handleEvent(event) {
     session.lastImageBase64 = null;
     recordPantryTrends(rawText, []);
 
-    const carousel = await generateRecipesForSession(session);
+    const carousel = await generateRecipesForSession(session, null, publicBaseUrl);
     return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
   }
 
@@ -1523,7 +1543,7 @@ async function handleEvent(event) {
     session.lastText = '';
     saveDB();
 
-    const carousel = await generateRecipesForSession(session);
+    const carousel = await generateRecipesForSession(session, null, publicBaseUrl);
     return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
   }
 
@@ -1542,12 +1562,30 @@ async function handleEvent(event) {
     session.lastImageBase64 = null;
     recordPantryTrends(spokenIngredients, []);
 
-    const carousel = await generateRecipesForSession(session);
+    const carousel = await generateRecipesForSession(session, null, publicBaseUrl);
     return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `🎙️ Heard: "${spokenIngredients}"` }, carousel] });
   }
 
   return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildWelcomeCard()] });
 }
+
+// Wrap webhook route to pass the incoming Render HTTPS host automatically
+app._router.stack.forEach((layer) => {
+  if (layer.route && layer.route.path === '/webhook') {
+    layer.route.stack[layer.route.stack.length - 1].handle = (req, res) => {
+      const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+      const host = req.headers['x-forwarded-host'] || req.get('host');
+      const publicBaseUrl = host ? `${proto}://${host}` : '';
+      console.log('📩 Webhook hit! Events:', req.body.events.length, '| BaseURL:', publicBaseUrl);
+      res.status(200).end();
+      req.body.events.forEach((event) => {
+        handleEvent(event, publicBaseUrl).catch((err) =>
+          console.error('❌ Error:', err?.status, err?.message, JSON.stringify(err?.errors || err?.body || ''))
+        );
+      });
+    };
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, async () => {
