@@ -367,73 +367,102 @@ async function getMessageBase64(messageId) {
   return Buffer.concat(chunks).toString('base64');
 }
 
-// --- 100% Exact Dish Photo Resolver (Exact Dish Render + Verified Fallbacks) ---
+// --- Verified High-Res Dish Photo Bank (Instant, 100% Reliable in LINE Flex) ---
+const DISH_PHOTO_BANK = [
+  { keys: ['pad kra pao', 'kra pao', 'basil chicken', 'basil pork', 'holy basil'], urls: [
+    'https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=800&q=80',
+  ]},
+  { keys: ['fried rice', 'khao pad', 'rice bowl', 'garlic rice'], urls: [
+    'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=800&q=80',
+  ]},
+  { keys: ['omelette', 'omelet', 'scrambled', 'poached egg', 'fried egg', 'egg'], urls: [
+    'https://images.unsplash.com/photo-1510693206972-df098062cb71?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1525351484163-7529414342d8?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?auto=format&fit=crop&w=800&q=80',
+  ]},
+  { keys: ['curry', 'masala', 'panang', 'green curry', 'red curry'], urls: [
+    'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=800&q=80',
+  ]},
+  { keys: ['noodle', 'pad thai', 'ramen', 'spaghetti', 'pasta', 'carbonara', 'macaroni'], urls: [
+    'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1551183053-bf91a1d81141?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1612874742237-6526221588e3?auto=format&fit=crop&w=800&q=80',
+  ]},
+  { keys: ['soup', 'tom yum', 'broth', 'stew', 'hotpot'], urls: [
+    'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1548943487-a2e4e43b4853?auto=format&fit=crop&w=800&q=80',
+  ]},
+  { keys: ['salad', 'yum', 'larb', 'greens', 'caesar'], urls: [
+    'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=800&q=80',
+  ]},
+  { keys: ['shrimp', 'prawn', 'seafood', 'squid'], urls: [
+    'https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1559737558-2f5a35f4523b?auto=format&fit=crop&w=800&q=80',
+  ]},
+  { keys: ['salmon', 'fish', 'tuna', 'fillet'], urls: [
+    'https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=800&q=80',
+  ]},
+  { keys: ['beef', 'steak', 'meatball'], urls: [
+    'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?auto=format&fit=crop&w=800&q=80',
+  ]},
+  { keys: ['pork', 'bacon', 'ham'], urls: [
+    'https://images.unsplash.com/photo-1602470520998-f4a52199a3d6?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80',
+  ]},
+  { keys: ['tofu', 'vegetable', 'veggie', 'mushroom', 'broccoli'], urls: [
+    'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80',
+  ]},
+  { keys: ['chicken', 'breast', 'wing', 'thigh', 'stir fry', 'stir-fry', 'teriyaki', 'garlic'], urls: [
+    'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1532550907401-a500c9a57435?auto=format&fit=crop&w=800&q=80',
+  ]},
+];
+
 async function getRecipeImageUrl(recipe, usedUrls = new Set()) {
-  const canonicalDish = (recipe.canonicalDish || '').trim();
-  const mainIngredient = (recipe.mainIngredient || 'chicken').trim().toLowerCase();
-  const title = (recipe.title || '').trim();
-  const dishName = canonicalDish || (/^[a-zA-Z0-9\s-]+$/.test(title) ? title : `${mainIngredient} dish`);
+  const searchText = `${recipe.canonicalDish || ''} ${recipe.title || ''} ${recipe.mainIngredient || ''}`.toLowerCase();
 
-  // 1. Exact Dish Photo via Direct HTTPS Image Endpoint (matches Pad Kra Pao, Burmese curry, omelettes, etc.)
-  const prompt = encodeURIComponent(
-    `professional food photography of ${dishName}, plated appetizingly on a ceramic dish, natural warm lighting, top-down 45 degree angle, high resolution, no text, no watermark`
-  );
-  const seed = Math.floor(1000 + Math.random() * 90000);
-  const exactDishUrl = `https://image.pollinations.ai/prompt/${prompt}?width=800&height=520&nologo=true&seed=${seed}`;
+  let bestGroup = null;
+  let bestScore = 0;
 
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 4500);
-    const res = await fetch(exactDishUrl, { method: 'HEAD', signal: controller.signal });
-    clearTimeout(timer);
-    if (res.ok && !usedUrls.has(exactDishUrl)) {
-      usedUrls.add(exactDishUrl);
-      return exactDishUrl;
+  for (const group of DISH_PHOTO_BANK) {
+    let score = 0;
+    for (const key of group.keys) {
+      if (searchText.includes(key)) {
+        score += key.includes(' ') ? 4 : 2;
+      }
     }
-  } catch {}
-
-  // 2. Fallback: Exact Dish Name Search in TheMealDB
-  for (const query of [canonicalDish, title].filter(Boolean)) {
-    try {
-      const res = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(query)}`);
-      const data = await res.json();
-      const hit = (data.meals || []).find((m) => m?.strMealThumb && !usedUrls.has(m.strMealThumb));
-      if (hit) {
-        usedUrls.add(hit.strMealThumb);
-        return hit.strMealThumb;
-      }
-    } catch {}
+    if (score > bestScore) {
+      bestScore = score;
+      bestGroup = group;
+    }
   }
 
-  // 3. Fallback: Ingredient-Matched TheMealDB Dish
-  const cleanIngredient = mainIngredient.split(/\s+/).pop();
-  if (cleanIngredient) {
-    try {
-      const res = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(cleanIngredient)}`);
-      const data = await res.json();
-      const available = (data.meals || []).filter((m) => m?.strMealThumb && !usedUrls.has(m.strMealThumb));
-      if (available.length > 0) {
-        usedUrls.add(available[0].strMealThumb);
-        return available[0].strMealThumb;
-      }
-    } catch {}
+  if (bestGroup) {
+    const unused = bestGroup.urls.find((u) => !usedUrls.has(u));
+    if (unused) {
+      usedUrls.add(unused);
+      return unused;
+    }
   }
 
-  // 4. Final Category-Matched Safe Fallback
-  const fallbackByIngredient = {
-    chicken: 'https://www.themealdb.com/images/media/meals/wyxwsp1486979827.jpg',
-    egg: 'https://www.themealdb.com/images/media/meals/1550441882.jpg',
-    beef: 'https://www.themealdb.com/images/media/meals/sytuqu1511553755.jpg',
-    pork: 'https://www.themealdb.com/images/media/meals/ytpstt1511814614.jpg',
-    shrimp: 'https://www.themealdb.com/images/media/meals/1529446352.jpg',
-    fish: 'https://www.themealdb.com/images/media/meals/1548772327.jpg',
-    salmon: 'https://www.themealdb.com/images/media/meals/1548772327.jpg',
-    pasta: 'https://www.themealdb.com/images/media/meals/ustsqw1468250014.jpg',
-    noodle: 'https://www.themealdb.com/images/media/meals/1529444830.jpg',
-    tofu: 'https://www.themealdb.com/images/media/meals/rvxxuy1468312893.jpg',
-    vegetable: 'https://www.themealdb.com/images/media/meals/rvxxuy1468312893.jpg',
-  };
-  return fallbackByIngredient[cleanIngredient] || 'https://www.themealdb.com/images/media/meals/1529444830.jpg';
+  for (const group of DISH_PHOTO_BANK) {
+    const unused = group.urls.find((u) => !usedUrls.has(u));
+    if (unused) {
+      usedUrls.add(unused);
+      return unused;
+    }
+  }
+
+  return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80';
 }
 
 async function getAvailableModels() {
@@ -1154,7 +1183,7 @@ async function generateRecipesForSession(session, filterStyle = null) {
 LANGUAGE RULE (CRITICAL):
 - Detect the language of the user's input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English).
 - Write "title", "time", "allIngredients", "missingItems", and "steps" in THAT EXACT SAME LANGUAGE (e.g., if the user writes or speaks in Burmese, write natural Burmese; if in Thai, write natural Thai; if in English or an image without text, write in English).
-- ALWAYS keep "canonicalDish" and "mainIngredient" in ENGLISH so photo generation works accurately.
+- ALWAYS keep "canonicalDish" and "mainIngredient" in ENGLISH so photo lookup works accurately.
 
 IMPORTANT INGREDIENT RULE:
 - Compare EVERY ingredient required to cook the dish (including cooking oil, sauces, seasonings, sugar, salt, aromatics, vegetables, and rice/noodles) against ONLY what the user explicitly provided.
@@ -1167,7 +1196,7 @@ Return ONLY valid JSON (no markdown) matching this exact format:
     {
       "title": "Dish Name in user's language",
       "emoji": "🍗",
-      "canonicalDish": "descriptive 2-4 word ENGLISH dish name for photo generation (e.g., Thai Basil Chicken Pad Kra Pao, Burmese Chicken Potato Curry, Crispy Garlic Omelette, Shrimp Fried Rice)",
+      "canonicalDish": "descriptive 2-4 word ENGLISH dish name for photo matching (e.g., Pad Kra Pao, Chicken Curry, Garlic Omelette, Shrimp Fried Rice, Chicken Noodle Soup)",
       "mainIngredient": "single primary ingredient in lowercase ENGLISH (e.g., chicken, egg, pork, shrimp, beef, salmon, tofu, pasta)",
       "calories": 520,
       "protein": 44,
