@@ -22,7 +22,7 @@ const mealPlanStore = new Map();
 const pendingReceiptItems = new Map();
 let cachedModels = null;
 
-// Clean up expired recipe/meal-plan cache every 30 minutes (keeps RAM flat for 70+ users)
+// Clean up expired cache every 30 minutes (keeps RAM flat for 70+ users)
 setInterval(() => {
   const cutoff = Date.now() - 2 * 60 * 60 * 1000;
   for (const key of recipeStore.keys()) {
@@ -95,6 +95,7 @@ function getTodayKey() {
 function getSession(userId) {
   if (!db.users[userId]) {
     db.users[userId] = {
+      lang: 'auto', // 'auto' | 'en' | 'th' | 'my'
       lastPromptType: null,
       lastText: '',
       lastImageBase64: null,
@@ -106,6 +107,7 @@ function getSession(userId) {
     saveDB();
   }
   const user = db.users[userId];
+  if (!user.lang) user.lang = 'auto';
   if (!user.goals) user.goals = { calories: 2000, protein: 130, label: 'Balanced (2000 kcal)' };
   if (!Array.isArray(user.saved)) user.saved = [];
   const today = getTodayKey();
@@ -113,7 +115,7 @@ function getSession(userId) {
   return user;
 }
 
-// --- Stream 4: Verified B2B Partner Invite Codes (Issued by Paying Gyms/Clinics) ---
+// --- Stream 4: Verified B2B Partner Invite Codes ---
 const B2B_PARTNER_CODES = {
   FITFIRST26: { partner: 'Fitness First Thailand', calories: 2400, protein: 165 },
   JETTS2026: { partner: 'Jetts 24 Hour Fitness', calories: 2300, protein: 155 },
@@ -146,7 +148,7 @@ function recordPantryTrends(rawIngredientsText = '', missingItemsList = []) {
   saveDB();
 }
 
-// --- Stream 2: Multi-Partner Contextual Ad Pool (Deduplicated Across Cards) ---
+// --- Stream 2: Multi-Partner Contextual Ad Pool ---
 const PARTNER_AD_POOL = [
   {
     tags: ['protein', 'chicken', 'egg', 'beef', 'pork', 'salmon', 'fitness'],
@@ -229,7 +231,7 @@ function getContextualSponsor(contextText = '', filterStyle = '', usedSponsors =
   return chosen;
 }
 
-// --- Pure Node.js PNG Generator with Icons + Bold Labels ---
+// --- Pure Node.js PNG Generator for Rich Menu ---
 function createRichMenuPngBuffer() {
   const width = 2500;
   const height = 843;
@@ -457,7 +459,7 @@ function buildWelcomeCard() {
           { type: 'text', text: '📸 Snap a fridge photo or grocery receipt', size: 'xs', color: '#374151', wrap: true },
           { type: 'text', text: '🎙️ Hold the mic & speak in English, Thai, or Burmese', size: 'xs', color: '#374151', wrap: true },
           { type: 'text', text: '✍️ Type ingredients in any language (e.g. "chicken, garlic", "อกไก่ กระเทียม", "ကြက်သား ကြက်သွန်ဖြူ")', size: 'xs', color: '#374151', wrap: true },
-          { type: 'text', text: '🏷️ Claim 30% Off Zero-Waste Supermarket Flash Deals', size: 'xs', color: '#374151', wrap: true },
+          { type: 'text', text: '🌐 Type "burmese", "thai", or "english" to switch language', size: 'xs', color: '#059669', weight: 'bold', wrap: true },
         ],
       },
       footer: {
@@ -466,7 +468,7 @@ function buildWelcomeCard() {
         spacing: 'xs',
         contents: [
           { type: 'button', style: 'primary', color: '#10B981', height: 'sm', action: { type: 'message', label: '🍗 Try Demo: Chicken & Garlic', text: 'chicken breast, garlic' } },
-          { type: 'button', style: 'secondary', height: 'sm', action: { type: 'postback', label: '🏷️ Tonight’s 30% Off Flash Deal', data: 'action=flash_deal', displayText: '🏷️ Claim Zero-Waste Flash Deal' } },
+          { type: 'button', style: 'secondary', height: 'sm', action: { type: 'postback', label: '🌐 Change Language (TH/EN/MY)', data: 'action=lang_menu', displayText: '🌐 Change Language' } },
         ],
       },
     },
@@ -476,6 +478,7 @@ function buildWelcomeCard() {
 function getFilterQuickReplies() {
   return {
     items: [
+      { type: 'action', action: { type: 'postback', label: '🌐 Language', data: 'action=lang_menu', displayText: '🌐 Change Language (TH/EN/MY)' } },
       { type: 'action', action: { type: 'postback', label: '🏷️ 30% Flash Deal', data: 'action=flash_deal', displayText: '🏷️ Tonight’s Zero-Waste Flash Deal' } },
       { type: 'action', action: { type: 'postback', label: '💰 Under 60 THB', data: 'action=filter&style=budget_60', displayText: '💰 Budget meals under 60 THB' } },
       { type: 'action', action: { type: 'postback', label: '🗓️ 3-Day Plan', data: 'action=meal_plan', displayText: '🗓️ 3-Day Zero-Waste Meal Plan' } },
@@ -721,7 +724,7 @@ function buildFlashDealCard() {
   };
 }
 
-// --- Multi-Theme Pastel Recipe Carousel (Full Uncut "Ad • ... ↗" Banner + Pixel-Aligned Slots) ---
+// --- Multi-Theme Pastel Recipe Carousel ---
 function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = '') {
   const safeRecipes = Array.isArray(recipes) && recipes.length > 0
     ? recipes.slice(0, 5)
@@ -828,7 +831,6 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
     bubbles.push({
       type: 'bubble',
       size: 'mega',
-      // Fixed 128px Pastel Header (Identical height across every card)
       header: {
         type: 'box',
         layout: 'vertical',
@@ -885,7 +887,6 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
           },
         ],
       },
-      // Fixed-Height Body + Locked Slot Heights (Full Uncut Ad Text + Pinned "↗" Link Icon)
       body: {
         type: 'box',
         layout: 'vertical',
@@ -893,7 +894,6 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
         paddingAll: 'xl',
         justifyContent: 'space-between',
         contents: [
-          // 1. Top Slot: 3 Friendly Stat Pills
           {
             type: 'box',
             layout: 'horizontal',
@@ -937,7 +937,6 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
               },
             ],
           },
-          // 2. Middle Slot: Fixed-Height Pantry Summary
           {
             type: 'box',
             layout: 'vertical',
@@ -966,7 +965,6 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
               },
             ],
           },
-          // 3. Bottom Slot: Full Uncut "Ad • ..." Banner + Pinned "↗" Link Icon
           {
             type: 'box',
             layout: 'horizontal',
@@ -1097,7 +1095,7 @@ function buildMealPlanCarousel(planData) {
   return { type: 'flex', altText: '🗓️ 3-Day Zero-Waste Meal Plan', contents: { type: 'carousel', contents: dayBubbles }, quickReply: getFilterQuickReplies() };
 }
 
-// --- Enhanced Cook Mode Card (Shows Ingredient Checklist on Step 1) ---
+// --- Enhanced Cook Mode Card ---
 function buildSingleStepCard(recipe, stepIndex) {
   const total = recipe.steps.length;
   const currentStep = recipe.steps[stepIndex] || 'Enjoy your meal!';
@@ -1275,7 +1273,6 @@ function buildGoalPickerCard(session) {
   };
 }
 
-// --- Stream 1: Shopping List + 1-Tap Affiliate Delivery Monetization Card ---
 function buildShoppingListCard(title, items, allIngredients = []) {
   const missingRows = items.map((item) => ({
     type: 'box', layout: 'horizontal', spacing: 'sm', margin: 'sm',
@@ -1322,50 +1319,51 @@ function buildShoppingListCard(title, items, allIngredients = []) {
   };
 }
 
-// --- Gemini AI Generators (Auto-Matches Burmese / Thai / English Output) ---
+// --- Gemini AI Generators (Multi-Language Supported) ---
 async function generateRecipesForSession(session, filterStyle = null) {
   const styleInstructions = {
     budget_60: 'Focus strictly on STUDENT BUDGET-FRIENDLY meals costing UNDER 60 THB per serving using affordable local Thai ingredients.',
     high_protein: 'Focus strictly on HIGH-PROTEIN fitness meals (40g+ protein per serving).',
     quick_15m: 'Focus strictly on ULTRA-FAST meals ready in 15 MINUTES OR LESS total.',
-    thai_style: 'Focus strictly on authentic THAI-STYLE dishes (e.g., pad kra pao, Thai garlic pepper, spicy lime salad).',
+    thai_style: 'Focus strictly on authentic THAI-STYLE dishes.',
   };
   const extraRule = filterStyle && styleInstructions[filterStyle] ? styleInstructions[filterStyle] : '';
 
-  const schemaPrompt = `${extraRule}
-LANGUAGE RULE (CRITICAL):
-- Detect the language of the user's input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English).
-- Write "title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps" in THAT EXACT SAME LANGUAGE (e.g., if the user writes or speaks in Burmese, write natural Burmese; if in Thai, write natural Thai; if in English or an image without text, write in English).
-- ALWAYS keep "mainIngredient" in lowercase ENGLISH.
+  const langInstructions = {
+    th: 'Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in natural THAI (ภาษาไทย).',
+    en: 'Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in ENGLISH.',
+    my: 'Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in natural BURMESE (မြန်မာဘာသာ).',
+    auto: 'Detect the language of the user\'s input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English) and write ALL output fields in THAT EXACT SAME LANGUAGE. If input is an image without text, write in English.',
+  };
+  const chosenLangRule = langInstructions[session.lang] || langInstructions.auto;
 
-IMPORTANT INGREDIENT RULE:
-- List the 2–4 key ingredients from the user's fridge/photo that this dish uses inside "usedIngredients".
-- Compare EVERY ingredient required to cook the dish (including cooking oil, sauces, seasonings, sugar, salt, aromatics, vegetables, and rice/noodles) against ONLY what the user explicitly provided.
-- Put EVERY SINGLE ingredient the user did NOT mention or show in the photo inside "missingItems" with exact quantities (do NOT cap at 1 or 2 items—list ALL 3, 4, 5+ missing items honestly!).
-- Also list every ingredient used in the recipe inside "allIngredients".
+  const schemaPrompt = `${extraRule}
+${chosenLangRule}
+- ALWAYS keep "mainIngredient" in lowercase ENGLISH.
+- Compare EVERY ingredient required to cook the dish against what the user provided, and list missing items in "missingItems".
 
 Return ONLY valid JSON (no markdown) matching this exact format:
 {
   "recipes": [
     {
-      "title": "Dish Name in user's language",
+      "title": "Dish Name",
       "emoji": "🍗",
-      "mainIngredient": "single primary ingredient in lowercase ENGLISH (e.g., chicken, egg, pork, shrimp, beef, salmon, tofu, pasta)",
-      "usedIngredients": ["200g chicken breast", "2 cloves garlic"],
+      "mainIngredient": "chicken",
+      "usedIngredients": ["200g chicken breast"],
       "calories": 520,
       "protein": 44,
       "costThb": 48,
-      "time": "15m (in user's language)",
-      "allIngredients": ["200g chicken breast", "2 cloves garlic", "1 tbsp soy sauce"],
-      "missingItems": ["1 tbsp soy sauce", "1 tbsp oyster sauce", "1 cup steamed rice"],
-      "steps": ["Step 1 instruction in user's language", "Step 2 instruction", "Step 3 instruction"]
+      "time": "15m",
+      "allIngredients": ["200g chicken breast", "2 cloves garlic"],
+      "missingItems": ["1 tbsp soy sauce"],
+      "steps": ["Step 1 instruction", "Step 2 instruction"]
     }
   ]
 }
 Suggest 3 distinct, practical, delicious recipes.`;
 
   const geminiContents = session.lastPromptType === 'image' && session.lastImageBase64
-    ? [{ inlineData: { mimeType: 'image/jpeg', data: session.lastImageBase64 } }, `You are FridgeFriend, an AI chef. Identify the ingredients in this photo and suggest 3 recipes using them. ${schemaPrompt}`]
+    ? [{ inlineData: { mimeType: 'image/jpeg', data: session.lastImageBase64 } }, `You are FridgeFriend, an AI chef. Identify ingredients in this photo and suggest 3 recipes. ${schemaPrompt}`]
     : `You are FridgeFriend, an AI chef. User ingredients: "${session.lastText}". ${schemaPrompt}`;
 
   const response = await generateWithFallback(geminiContents, { responseMimeType: 'application/json' });
@@ -1375,28 +1373,33 @@ Suggest 3 distinct, practical, delicious recipes.`;
 }
 
 async function generateMealPlanForSession(session) {
-  const planPrompt = `Create a smart 3-Day Zero-Waste Meal Plan (Lunch & Dinner for 3 days = 6 meals total) that uses up perishable ingredients first so nothing spoils.
-LANGUAGE RULE: If the user's ingredients are in Burmese (မြန်မာဘာသာ) or Thai (ภาษาไทย), write "focus", "lunch", "dinner", "ingredientsNeeded", "wasteTip", and "consolidatedShoppingList" in THAT SAME LANGUAGE; otherwise write in English.
-For EVERY day, list the real, specific grocery/food ingredients needed to cook that day's Lunch & Dinner inside "ingredientsNeeded" (with practical quantities), and put the complete combined shopping list across all 3 days inside "consolidatedShoppingList".
+  const langInstructions = {
+    th: 'Write meal plan in natural THAI (ภาษาไทย).',
+    en: 'Write meal plan in ENGLISH.',
+    my: 'Write meal plan in natural BURMESE (မြန်မာဘာသာ).',
+    auto: 'Match user language or default to English.',
+  };
+
+  const planPrompt = `Create a smart 3-Day Zero-Waste Meal Plan (6 meals total). ${langInstructions[session.lang] || ''}
 Return ONLY valid JSON (no markdown) matching this exact format:
 {
   "days": [
     {
-      "focus": "Use Fresh Meat & Greens First",
+      "focus": "Use Fresh Meat First",
       "lunch": "Dish Name",
       "lunchMacros": "480 kcal | 40g P",
       "dinner": "Dish Name",
       "dinnerMacros": "520 kcal | 42g P",
-      "ingredientsNeeded": ["300g chicken breast", "2 cloves garlic", "1 cup jasmine rice"],
-      "wasteTip": "Short tip on how leftover ingredients carry over to Day 2"
+      "ingredientsNeeded": ["300g chicken breast", "garlic"],
+      "wasteTip": "Tip on leftovers"
     }
   ],
-  "consolidatedShoppingList": ["600g chicken breast", "6 eggs", "1 bunch holy basil", "1 bottle soy sauce", "1kg jasmine rice"]
+  "consolidatedShoppingList": ["600g chicken breast", "6 eggs"]
 }`;
 
   const geminiContents = session.lastPromptType === 'image' && session.lastImageBase64
-    ? [{ inlineData: { mimeType: 'image/jpeg', data: session.lastImageBase64 } }, `You are FridgeFriend, a zero-waste meal planner. Based on the ingredients in this photo, ${planPrompt}`]
-    : `You are FridgeFriend, a zero-waste meal planner. User ingredients: "${session.lastText || 'chicken breast, eggs, garlic, soy sauce, rice, vegetables'}". ${planPrompt}`;
+    ? [{ inlineData: { mimeType: 'image/jpeg', data: session.lastImageBase64 } }, `Create a 3-day meal plan from this photo. ${planPrompt}`]
+    : `Create a 3-day meal plan based on: "${session.lastText || 'chicken breast, eggs, garlic, rice'}". ${planPrompt}`;
 
   const response = await generateWithFallback(geminiContents, { responseMimeType: 'application/json' });
   const parsed = JSON.parse(response.text.replace(/```json|```/g, '').trim());
@@ -1417,6 +1420,42 @@ async function handleEvent(event) {
     const params = new URLSearchParams(event.postback.data);
     const action = params.get('action');
 
+    if (action === 'lang_menu') {
+      return messagingClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{
+          type: 'text',
+          text: '🌐 Choose your preferred language / ရွေးချယ်ပါ / เลือกภาษา:',
+          quickReply: {
+            items: [
+              { type: 'action', action: { type: 'postback', label: '🇲🇲 မြန်မာ (Burmese)', data: 'action=set_lang&lang=my', displayText: '🇲🇲 မြန်မာဘာသာသို့ ပြောင်းမည်' } },
+              { type: 'action', action: { type: 'postback', label: '🇹🇭 ภาษาไทย (Thai)', data: 'action=set_lang&lang=th', displayText: '🇹🇭 เปลี่ยนเป็นภาษาไทย' } },
+              { type: 'action', action: { type: 'postback', label: '🇬🇧 English', data: 'action=set_lang&lang=en', displayText: '🇬🇧 Switch to English' } },
+              { type: 'action', action: { type: 'postback', label: '✨ Auto-Detect', data: 'action=set_lang&lang=auto', displayText: '✨ Auto-Detect Language' } },
+            ],
+          },
+        }],
+      });
+    }
+
+    if (action === 'set_lang') {
+      const lang = params.get('lang') || 'auto';
+      session.lang = lang;
+      saveDB();
+      const confirmMap = {
+        th: '✅ ตั้งค่าเป็นภาษาไทยเรียบร้อย! ส่งรูปหรือพิมพ์รายการอาหารได้เลย 🍳',
+        en: '✅ Language set to English! Send a fridge photo or ingredients anytime 🍳',
+        my: '✅ မြန်မာဘာသာသို့ ပြောင်းလဲပြီးပါပြီ! ဓာတ်ပုံ သို့မဟုတ် ပါဝင်ပစ္စည်းများ ပို့နိုင်ပါပြီ 🍳',
+        auto: '✅ Auto-detect enabled! I will reply in whatever language you use 🌐',
+      };
+      if (session.lastPromptType) {
+        if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
+        const carousel = await generateRecipesForSession(session);
+        return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: confirmMap[lang] }, carousel] });
+      }
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: confirmMap[lang] }] });
+    }
+
     if (action === 'sponsor_click') {
       const recipe = recipeStore.get(params.get('id'));
       const sponsor = recipe?.sponsor || getContextualSponsor();
@@ -1434,16 +1473,13 @@ async function handleEvent(event) {
     if (action === 'flash_deal') {
       db.analytics.couponClaims = (db.analytics.couponClaims || 0) + 1;
       saveDB();
-      return messagingClient.replyMessage({
-        replyToken: event.replyToken,
-        messages: [buildFlashDealCard()],
-      });
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildFlashDealCard()] });
     }
 
     if (action === 'cook') {
       const recipe = recipeStore.get(params.get('id'));
       const stepIdx = parseInt(params.get('step') || '0', 10);
-      if (!recipe) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: 'Recipe expired—send your ingredients again for fresh ideas! 🥦' }] });
+      if (!recipe) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: 'Recipe expired—send your ingredients again! 🥦' }] });
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildSingleStepCard(recipe, stepIdx)] });
     }
 
@@ -1455,7 +1491,7 @@ async function handleEvent(event) {
           messagingClient.pushMessage({ to: event.source.userId, messages: [{ type: 'text', text: `⏰ Ding! Your ${mins}-minute timer for ${dishTitle} is up! 🔥🍳` }] }).catch((e) => console.error('Timer push failed:', e.message));
         }
       }, mins * 60 * 1000);
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `⏱️ Timer set for ${mins} minute(s)! I'll ping you right here when it's done.` }] });
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `⏱️ Timer set for ${mins} minute(s)!` }] });
     }
 
     if (action === 'missing') {
@@ -1467,7 +1503,7 @@ async function handleEvent(event) {
     }
 
     if (action === 'plan_list') {
-      const items = mealPlanStore.get(params.get('id')) || ['Chicken breast, eggs, garlic, rice, soy sauce'];
+      const items = mealPlanStore.get(params.get('id')) || ['Chicken breast, eggs, garlic, rice'];
       db.analytics.affiliateClicks = (db.analytics.affiliateClicks || 0) + 1;
       saveDB();
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildShoppingListCard('3-Day Meal Prep Ingredients', items)] });
@@ -1513,7 +1549,7 @@ async function handleEvent(event) {
       const label = params.get('label') || `${cal} kcal | ${pro}g P`;
       session.goals = { calories: cal, protein: pro, label };
       saveDB();
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `✅ Updated your daily target to ${cal} kcal & ${pro}g protein!` }, buildStatsCard(session)] });
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `✅ Updated daily target to ${cal} kcal & ${pro}g protein!` }, buildStatsCard(session)] });
     }
 
     if (action === 'receipt_cook') {
@@ -1534,7 +1570,7 @@ async function handleEvent(event) {
     }
 
     if (action === 'filter') {
-      if (!session.lastPromptType) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: 'Send ingredients, a voice note, or a fridge photo first! 🥦📸' }] });
+      if (!session.lastPromptType) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: 'Send ingredients or a fridge photo first! 🥦📸' }] });
       if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
       const carousel = await generateRecipesForSession(session, params.get('style'));
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
@@ -1547,6 +1583,23 @@ async function handleEvent(event) {
     const rawText = event.message.text.trim();
     const lower = rawText.toLowerCase();
 
+    // Quick text language shortcuts
+    if (lower === 'burmese' || lower === 'မြန်မာ') {
+      session.lang = 'my';
+      saveDB();
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ မြန်မာဘာသာသို့ ပြောင်းလဲပြီးပါပြီ! ပါဝင်ပစ္စည်းများ ပို့ပါ။' }] });
+    }
+    if (lower === 'thai' || lower === 'ไทย' || lower === 'ภาษาไทย') {
+      session.lang = 'th';
+      saveDB();
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ เปลี่ยนเป็นภาษาไทยเรียบร้อย! ส่งวัตถุดิบหรือรูปภาพได้เลย' }] });
+    }
+    if (lower === 'english' || lower === 'en') {
+      session.lang = 'en';
+      saveDB();
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ Language switched to English! Send ingredients anytime.' }] });
+    }
+
     if (lower === 'help' || lower === 'menu' || lower === 'hi' || lower === 'hello' || lower === 'สวัสดี' || lower === 'မင်္ဂလာပါ') {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildWelcomeCard()] });
     }
@@ -1557,85 +1610,27 @@ async function handleEvent(event) {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildFlashDealCard()] });
     }
 
-    // Stream 4: Verified B2B Partner Code Redemption (Gated by Partner Invite Code)
     if (lower.startsWith('redeem ')) {
       const code = rawText.slice(7).trim().toUpperCase();
       const partnerInfo = B2B_PARTNER_CODES[code];
       if (!partnerInfo) {
         return messagingClient.replyMessage({
           replyToken: event.replyToken,
-          messages: [{
-            type: 'text',
-            text: '❌ Invalid B2B partner code. Please enter the invite code issued by your partner gym or nutrition clinic.',
-          }],
+          messages: [{ type: 'text', text: '❌ Invalid partner code.' }],
         });
       }
-      if (!session.gymPartner) {
-        db.analytics.gymActivations = (db.analytics.gymActivations || 0) + 1;
-      }
+      if (!session.gymPartner) db.analytics.gymActivations = (db.analytics.gymActivations || 0) + 1;
       session.gymPartner = partnerInfo.partner;
-      session.goals = {
-        calories: partnerInfo.calories,
-        protein: partnerInfo.protein,
-        label: `${partnerInfo.partner} Plan`,
-      };
+      session.goals = { calories: partnerInfo.calories, protein: partnerInfo.protein, label: `${partnerInfo.partner} Plan` };
       saveDB();
       return messagingClient.replyMessage({
         replyToken: event.replyToken,
-        messages: [
-          {
-            type: 'text',
-            text: `✅ Verified Partner Code (${code})!\nLinked to: ${partnerInfo.partner}\nYour coach's macro targets (${partnerInfo.calories} kcal | ${partnerInfo.protein}g protein) are now active.`,
-          },
-          buildStatsCard(session),
-        ],
+        messages: [{ type: 'text', text: `✅ Linked to ${partnerInfo.partner}! (${partnerInfo.calories} kcal | ${partnerInfo.protein}g P)` }, buildStatsCard(session)],
       });
     }
 
-    if (lower === 'unredeem' || lower === 'cancel gym' || lower === 'cancel') {
-      if (!session.gymPartner) {
-        return messagingClient.replyMessage({
-          replyToken: event.replyToken,
-          messages: [{ type: 'text', text: 'ℹ️ You do not have an active B2B partner gym pass right now.' }],
-        });
-      }
-      const oldPartner = session.gymPartner;
-      session.gymPartner = null;
-      session.goals = { calories: 2000, protein: 130, label: 'Balanced (2000 kcal)' };
-      if (db.analytics.gymActivations > 0) {
-        db.analytics.gymActivations -= 1;
-      }
-      saveDB();
-      return messagingClient.replyMessage({
-        replyToken: event.replyToken,
-        messages: [
-          {
-            type: 'text',
-            text: `🔓 Unlinked from ${oldPartner}. Your account has returned to standard Free Mode (2000 kcal | 130g protein).`,
-          },
-          buildStatsCard(session),
-        ],
-      });
-    }
-
-    // Stream 5 + Executive Flex Card: B2B Revenue & Analytics Dashboard
     if (lower === 'revenue' || lower === 'ads' || lower === 'business') {
-      return messagingClient.replyMessage({
-        replyToken: event.replyToken,
-        messages: [buildB2BRevenueCard()],
-      });
-    }
-
-    if (lower.startsWith('goal ')) {
-      const nums = rawText.match(/\d+/g);
-      if (nums && nums.length >= 2) {
-        const cal = parseInt(nums[0], 10);
-        const pro = parseInt(nums[1], 10);
-        session.goals = { calories: cal, protein: pro, label: `Custom (${cal} kcal | ${pro}g P)` };
-        saveDB();
-        return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `✅ Custom target saved: ${cal} kcal & ${pro}g protein!` }, buildStatsCard(session)] });
-      }
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildGoalPickerCard(session)] });
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildB2BRevenueCard()] });
     }
 
     if (lower === 'stats' || lower === 'macros') {
@@ -1643,7 +1638,7 @@ async function handleEvent(event) {
     }
 
     if (lower === 'saved' || lower === 'cookbook' || lower === 'favorites') {
-      if (session.saved.length === 0) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '📖 Your Cookbook is empty! Tap "❤️ Save" on any recipe card to save it here.' }] });
+      if (session.saved.length === 0) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '📖 Your Cookbook is empty! Tap "❤️ Save" on any recipe card.' }] });
       const savedCarousel = buildRecipeCarousel(session.saved, false);
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [savedCarousel] });
     }
@@ -1693,7 +1688,7 @@ async function handleEvent(event) {
 
     const transcribeRes = await generateWithFallback([
       { inlineData: { mimeType: 'audio/m4a', data: base64Audio } },
-      'Extract ONLY the food ingredients and cooking preferences spoken in this voice note as a concise comma-separated phrase, preserving the exact spoken language (Burmese, Thai, or English).',
+      'Extract ONLY the food ingredients spoken in this voice note as a concise comma-separated phrase, preserving the spoken language.',
     ]);
 
     const spokenIngredients = transcribeRes.text.trim();
