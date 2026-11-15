@@ -39,6 +39,75 @@ setInterval(() => {
   }
 }, 30 * 60 * 1000).unref();
 
+// --- Multi-Language UI Strings Dictionary ---
+const UI_STRINGS = {
+  en: {
+    bestMatch: '🏆 BEST MATCH',
+    option: '✨ OPTION',
+    uses: '🥬 Uses',
+    need: '🛒 Need',
+    readyCook: '✅ Ready to cook — 0 missing items!',
+    cookBtn: "👨‍🍳 Let's Cook!",
+    buyBtn: '🛒 Buy',
+    readyBtn: '✅ Ready',
+    saveBtn: '❤️ Save',
+    stepTitle: 'STEP',
+    of: 'OF',
+    prepCheck: '📋 Prep Checklist:',
+    cookedBtn: '✅ I Cooked This',
+    dailyMacros: '📊 Daily Macros',
+    target: '🎯 Target',
+    protein: 'Protein',
+    calories: 'Calories',
+    mealsLogged: '🍽️ Meals Logged Today:',
+  },
+  th: {
+    bestMatch: '🏆 แนะนำที่สุด',
+    option: '✨ ตัวเลือก',
+    uses: '🥬 มีวัตถุดิบ',
+    need: '🛒 ต้องซื้อเพิ่ม',
+    readyCook: '✅ พร้อมทำ — มีครบทุกอย่าง!',
+    cookBtn: '👨‍🍳 เริ่มทำอาหาร',
+    buyBtn: '🛒 ซื้อเพิ่ม',
+    readyBtn: '✅ พร้อมแล้ว',
+    saveBtn: '❤️ บันทึก',
+    stepTitle: 'ขั้นตอนที่',
+    of: 'จาก',
+    prepCheck: '📋 รายการเตรียมวัตถุดิบ:',
+    cookedBtn: '✅ ทำเมนูนี้เสร็จแล้ว',
+    dailyMacros: '📊 สรุปสารอาหารประจำวัน',
+    target: '🎯 เป้าหมาย',
+    protein: 'โปรตีน',
+    calories: 'แคลอรี่',
+    mealsLogged: '🍽️ เมนูที่ทำวันนี้:',
+  },
+  my: {
+    bestMatch: '🏆 အသင့်တော်ဆုံး',
+    option: '✨ ရွေးချယ်စရာ',
+    uses: '🥬 ပါဝင်ပစ္စည်းများ',
+    need: '🛒 ဝယ်ယူရန်',
+    readyCook: '✅ ချက်ပြုတ်ရန် အသင့်ဖြစ်ပါပြီ — လိုအပ်သည်များ မရှိပါ!',
+    cookBtn: '👨‍🍳 ချက်ပြုတ်မည်',
+    buyBtn: '🛒 ဝယ်ယူရန်',
+    readyBtn: '✅ အသင့်ရှိ',
+    saveBtn: '❤️ သိမ်းဆည်းမည်',
+    stepTitle: 'အဆင့်',
+    of: '/',
+    prepCheck: '📋 ပြင်ဆင်ရန်စာရင်း:',
+    cookedBtn: '✅ ချက်ပြုတ်ပြီးပါပြီ',
+    dailyMacros: '📊 ယနေ့ အာဟာရစားသုံးမှု',
+    target: '🎯 ပန်းတိုင်',
+    protein: 'ပရိုတင်း',
+    calories: 'ကယ်လိုရီ',
+    mealsLogged: '🍽️ ယနေ့ ချက်ပြုတ်ခဲ့သည့် ဟင်းပွဲများ:',
+  },
+};
+
+function t(session, key) {
+  const lang = session?.lang && UI_STRINGS[session.lang] ? session.lang : 'en';
+  return UI_STRINGS[lang][key] || UI_STRINGS.en[key] || key;
+}
+
 // --- Multi-User Persistence + Full 5-Stream B2B Analytics (db.json) ---
 function loadDB() {
   try {
@@ -458,7 +527,7 @@ function buildWelcomeCard() {
           { type: 'text', text: 'Try any input mode (English / ไทย / မြန်မာ):', size: 'sm', weight: 'bold', color: '#111827', wrap: true },
           { type: 'text', text: '📸 Snap a fridge photo or grocery receipt', size: 'xs', color: '#374151', wrap: true },
           { type: 'text', text: '🎙️ Hold the mic & speak in English, Thai, or Burmese', size: 'xs', color: '#374151', wrap: true },
-          { type: 'text', text: '✍️ Type ingredients in any language (e.g. "chicken, garlic", "อกไก่ กระเทียม", "ကြက်သား ကြက်သွန်ဖြူ")', size: 'xs', color: '#374151', wrap: true },
+          { type: 'text', text: '✍️ Type ingredients in any language', size: 'xs', color: '#374151', wrap: true },
           { type: 'text', text: '🌐 Type "burmese", "thai", or "english" to switch language', size: 'xs', color: '#059669', weight: 'bold', wrap: true },
         ],
       },
@@ -475,10 +544,13 @@ function buildWelcomeCard() {
   };
 }
 
-function getFilterQuickReplies() {
+function getFilterQuickReplies(session) {
+  const lang = session?.lang || 'en';
+  const langLabel = lang === 'th' ? '🇹🇭 ภาษาไทย' : lang === 'my' ? '🇲🇲 မြန်မာ' : lang === 'en' ? '🇬🇧 English' : '🌐 Language';
+
   return {
     items: [
-      { type: 'action', action: { type: 'postback', label: '🌐 Language', data: 'action=lang_menu', displayText: '🌐 Change Language (TH/EN/MY)' } },
+      { type: 'action', action: { type: 'postback', label: langLabel, data: 'action=lang_menu', displayText: '🌐 Change Language (TH/EN/MY)' } },
       { type: 'action', action: { type: 'postback', label: '🏷️ 30% Flash Deal', data: 'action=flash_deal', displayText: '🏷️ Tonight’s Zero-Waste Flash Deal' } },
       { type: 'action', action: { type: 'postback', label: '💰 Under 60 THB', data: 'action=filter&style=budget_60', displayText: '💰 Budget meals under 60 THB' } },
       { type: 'action', action: { type: 'postback', label: '🗓️ 3-Day Plan', data: 'action=meal_plan', displayText: '🗓️ 3-Day Zero-Waste Meal Plan' } },
@@ -490,7 +562,7 @@ function getFilterQuickReplies() {
 }
 
 // --- Clean Executive Flex Card for 5-Stream B2B Business Model & Live Metrics ---
-function buildB2BRevenueCard() {
+function buildB2BRevenueCard(session) {
   const totalUsers = Object.keys(db.users || {}).length;
   const affViews = db.analytics.affiliateClicks || 0;
   const adClicks = db.analytics.sponsoredClicks || 0;
@@ -561,8 +633,6 @@ function buildB2BRevenueCard() {
             ],
           },
           { type: 'text', text: '5 ACTIVE B2B REVENUE STREAMS', size: 'xs', weight: 'bold', color: '#475569' },
-
-          // Stream 1
           {
             type: 'box',
             layout: 'vertical',
@@ -580,8 +650,6 @@ function buildB2BRevenueCard() {
             ],
           },
           { type: 'separator' },
-
-          // Stream 2
           {
             type: 'box',
             layout: 'vertical',
@@ -599,8 +667,6 @@ function buildB2BRevenueCard() {
             ],
           },
           { type: 'separator' },
-
-          // Stream 3
           {
             type: 'box',
             layout: 'vertical',
@@ -618,8 +684,6 @@ function buildB2BRevenueCard() {
             ],
           },
           { type: 'separator' },
-
-          // Stream 4
           {
             type: 'box',
             layout: 'vertical',
@@ -637,8 +701,6 @@ function buildB2BRevenueCard() {
             ],
           },
           { type: 'separator' },
-
-          // Stream 5
           {
             type: 'box',
             layout: 'vertical',
@@ -669,7 +731,7 @@ function buildB2BRevenueCard() {
         ],
       },
     },
-    quickReply: getFilterQuickReplies(),
+    quickReply: getFilterQuickReplies(session),
   };
 }
 
@@ -724,8 +786,8 @@ function buildFlashDealCard() {
   };
 }
 
-// --- Multi-Theme Pastel Recipe Carousel ---
-function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = '') {
+// --- Multi-Theme Pastel Recipe Carousel (Fully Localized UI Buttons & Text) ---
+function buildRecipeCarousel(recipes, session, includeQuickReplies = true, filterStyle = '') {
   const safeRecipes = Array.isArray(recipes) && recipes.length > 0
     ? recipes.slice(0, 5)
     : [{
@@ -742,46 +804,11 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
       }];
 
   const cardThemes = [
-    {
-      headerBg: '#ECFDF5',
-      tagColor: '#059669',
-      titleColor: '#064E3B',
-      barTrack: '#A7F3D0',
-      barFill: '#10B981',
-      btnColor: '#10B981',
-    },
-    {
-      headerBg: '#EFF6FF',
-      tagColor: '#2563EB',
-      titleColor: '#1E3A8A',
-      barTrack: '#BFDBFE',
-      barFill: '#3B82F6',
-      btnColor: '#2563EB',
-    },
-    {
-      headerBg: '#FFF7ED',
-      tagColor: '#EA580C',
-      titleColor: '#7C2D12',
-      barTrack: '#FED7AA',
-      barFill: '#F97316',
-      btnColor: '#EA580C',
-    },
-    {
-      headerBg: '#F5F3FF',
-      tagColor: '#7C3AED',
-      titleColor: '#4C1D95',
-      barTrack: '#DDD6FE',
-      barFill: '#8B5CF6',
-      btnColor: '#7C3AED',
-    },
-    {
-      headerBg: '#FFF1F2',
-      tagColor: '#E11D48',
-      titleColor: '#881337',
-      barTrack: '#FECDD3',
-      barFill: '#F43F5E',
-      btnColor: '#E11D48',
-    },
+    { headerBg: '#ECFDF5', tagColor: '#059669', titleColor: '#064E3B', barTrack: '#A7F3D0', barFill: '#10B981', btnColor: '#10B981' },
+    { headerBg: '#EFF6FF', tagColor: '#2563EB', titleColor: '#1E3A8A', barTrack: '#BFDBFE', barFill: '#3B82F6', btnColor: '#2563EB' },
+    { headerBg: '#FFF7ED', tagColor: '#EA580C', titleColor: '#7C2D12', barTrack: '#FED7AA', barFill: '#F97316', btnColor: '#EA580C' },
+    { headerBg: '#F5F3FF', tagColor: '#7C3AED', titleColor: '#4C1D95', barTrack: '#DDD6FE', barFill: '#8B5CF6', btnColor: '#7C3AED' },
+    { headerBg: '#FFF1F2', tagColor: '#E11D48', titleColor: '#881337', barTrack: '#FECDD3', barFill: '#F43F5E', btnColor: '#E11D48' },
   ];
 
   const enriched = safeRecipes.map((recipe) => {
@@ -805,7 +832,6 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
     const calories = Number(recipe.calories) || 450;
     const protein = Number(recipe.protein) || 32;
     const costThb = Number(recipe.costThb) || 45;
-    const macros = `${calories} kcal | ${protein}g P | ~${costThb} THB`;
     const { allIngredients, missing, hasMissing, matchPct } = recipe;
 
     const usedList = Array.isArray(recipe.usedIngredients) && recipe.usedIngredients.length > 0
@@ -819,10 +845,10 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
     recordPantryTrends('', missing);
 
     const sponsor = getContextualSponsor(`${title} ${recipe.mainIngredient || ''}`, filterStyle, usedSponsors);
-    const normalizedRecipe = { ...recipe, id: recipeId, title, time, calories, protein, costThb, macros, allIngredients, missingItems: missing, steps, sponsor };
+    const normalizedRecipe = { ...recipe, id: recipeId, title, time, calories, protein, costThb, macros: `${calories} kcal | ${protein}g P`, allIngredients, missingItems: missing, steps, sponsor };
     recipeStore.set(recipeId, normalizedRecipe);
 
-    const topTag = idx === 0 ? '🏆 BEST MATCH' : `✨ OPTION #${idx + 1}`;
+    const topTag = idx === 0 ? t(session, 'bestMatch') : `${t(session, 'option')} #${idx + 1}`;
     const missingCleanNames = missing
       .slice(0, 2)
       .map((m) => m.replace(/^[\d./]+\s*(?:tbsp|tsp|cup|cups|g|kg|ml|l|pcs|cloves|bunch|bottle)?\s*/i, '').trim())
@@ -946,7 +972,7 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
             contents: [
               {
                 type: 'text',
-                text: `🥬 Uses: ${usedList}`,
+                text: `${t(session, 'uses')}: ${usedList}`,
                 size: 'xs',
                 color: '#1F2937',
                 weight: 'bold',
@@ -956,8 +982,8 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
               {
                 type: 'text',
                 text: hasMissing
-                  ? `🛒 Need: ${missing.length} item${missing.length > 1 ? 's' : ''} (${missingCleanNames}${missing.length > 2 ? '...' : ''})`
-                  : '✅ Ready to cook — 0 missing items!',
+                  ? `${t(session, 'need')}: ${missing.length} item${missing.length > 1 ? 's' : ''} (${missingCleanNames}${missing.length > 2 ? '...' : ''})`
+                  : t(session, 'readyCook'),
                 size: 'xs',
                 color: hasMissing ? '#DC2626' : '#059669',
                 wrap: true,
@@ -1015,7 +1041,7 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
             style: 'primary',
             color: theme.btnColor,
             height: 'sm',
-            action: { type: 'postback', label: "👨‍🍳 Let's Cook!", data: `action=cook&id=${recipeId}&step=0`, displayText: `Start cooking ${title}`.slice(0, 300) },
+            action: { type: 'postback', label: t(session, 'cookBtn'), data: `action=cook&id=${recipeId}&step=0`, displayText: `Start cooking ${title}`.slice(0, 300) },
           },
           {
             type: 'box',
@@ -1027,14 +1053,14 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
                 style: 'secondary',
                 height: 'sm',
                 flex: 1,
-                action: { type: 'postback', label: hasMissing ? `🛒 Buy (${missing.length})` : '✅ Ready (0)', data: `action=missing&id=${recipeId}`, displayText: `Order missing items for ${title}`.slice(0, 300) },
+                action: { type: 'postback', label: hasMissing ? `${t(session, 'buyBtn')} (${missing.length})` : `${t(session, 'readyBtn')} (0)`, data: `action=missing&id=${recipeId}`, displayText: `Order missing items for ${title}`.slice(0, 300) },
               },
               {
                 type: 'button',
                 style: 'secondary',
                 height: 'sm',
                 flex: 1,
-                action: { type: 'postback', label: '❤️ Save', data: `action=save&id=${recipeId}`, displayText: `Save ${title}`.slice(0, 300) },
+                action: { type: 'postback', label: t(session, 'saveBtn'), data: `action=save&id=${recipeId}`, displayText: `Save ${title}`.slice(0, 300) },
               },
             ],
           },
@@ -1044,11 +1070,11 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
   }
 
   const msg = { type: 'flex', altText: 'FridgeFriend Recipe Suggestions 🍳', contents: { type: 'carousel', contents: bubbles } };
-  if (includeQuickReplies) msg.quickReply = getFilterQuickReplies();
+  if (includeQuickReplies) msg.quickReply = getFilterQuickReplies(session);
   return msg;
 }
 
-function buildMealPlanCarousel(planData) {
+function buildMealPlanCarousel(planData, session) {
   const planId = `${Date.now()}_${Math.floor(Math.random() * 1000)}`;
   const days = Array.isArray(planData?.days) && planData.days.length > 0
     ? planData.days.slice(0, 3)
@@ -1092,11 +1118,11 @@ function buildMealPlanCarousel(planData) {
     },
   }));
 
-  return { type: 'flex', altText: '🗓️ 3-Day Zero-Waste Meal Plan', contents: { type: 'carousel', contents: dayBubbles }, quickReply: getFilterQuickReplies() };
+  return { type: 'flex', altText: '🗓️ 3-Day Zero-Waste Meal Plan', contents: { type: 'carousel', contents: dayBubbles }, quickReply: getFilterQuickReplies(session) };
 }
 
 // --- Enhanced Cook Mode Card ---
-function buildSingleStepCard(recipe, stepIndex) {
+function buildSingleStepCard(recipe, stepIndex, session) {
   const total = recipe.steps.length;
   const currentStep = recipe.steps[stepIndex] || 'Enjoy your meal!';
   const isLast = stepIndex >= total - 1;
@@ -1110,7 +1136,7 @@ function buildSingleStepCard(recipe, stepIndex) {
   if (!isLast) {
     footerButtons.push({ type: 'button', style: 'primary', color: '#10B981', height: 'sm', action: { type: 'postback', label: `Next Step (${stepIndex + 2}/${total}) ➡️`, data: `action=cook&id=${recipe.id}&step=${stepIndex + 1}`, displayText: `Step ${stepIndex + 2}` } });
   } else {
-    footerButtons.push({ type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'postback', label: `✅ I Cooked This (+${recipe.protein}g Protein)`, data: `action=log_meal&id=${recipe.id}`, displayText: `Logged ${recipe.title}! 💪` } });
+    footerButtons.push({ type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'postback', label: `${t(session, 'cookedBtn')} (+${recipe.protein}g Protein)`, data: `action=log_meal&id=${recipe.id}`, displayText: `Logged ${recipe.title}! 💪` } });
   }
 
   const prepCheck = stepIndex === 0 && Array.isArray(recipe.allIngredients) && recipe.allIngredients.length > 0
@@ -1123,7 +1149,7 @@ function buildSingleStepCard(recipe, stepIndex) {
           paddingAll: 'sm',
           spacing: 'xs',
           contents: [
-            { type: 'text', text: '📋 Prep Checklist:', size: 'xxs', weight: 'bold', color: '#475569' },
+            { type: 'text', text: t(session, 'prepCheck'), size: 'xxs', weight: 'bold', color: '#475569' },
             { type: 'text', text: recipe.allIngredients.join(' • '), size: 'xxs', color: '#334155', wrap: true },
           ],
         },
@@ -1140,7 +1166,7 @@ function buildSingleStepCard(recipe, stepIndex) {
         layout: 'vertical',
         spacing: 'md',
         contents: [
-          { type: 'text', text: `STEP ${stepIndex + 1} OF ${total}`, weight: 'bold', size: 'xs', color: '#10B981' },
+          { type: 'text', text: `${t(session, 'stepTitle')} ${stepIndex + 1} ${t(session, 'of')} ${total}`, weight: 'bold', size: 'xs', color: '#10B981' },
           { type: 'text', text: `${recipe.emoji || '🍳'} ${recipe.title}`, weight: 'bold', size: 'md', wrap: true },
           ...prepCheck,
           { type: 'separator' },
@@ -1189,23 +1215,17 @@ function buildStatsCard(session) {
         backgroundColor: '#EFF6FF',
         cornerRadius: 'md',
         paddingAll: 'xs',
-        contents: [{ type: 'text', text: `🏋️ Verified Partner Member: ${session.gymPartner}`, size: 'xs', weight: 'bold', color: '#1D4ED8', align: 'center', wrap: true }],
+        contents: [{ type: 'text', text: `🏋️ Partner: ${session.gymPartner}`, size: 'xs', weight: 'bold', color: '#1D4ED8', align: 'center', wrap: true }],
       }]
-    : [{
-        type: 'text',
-        text: '💡 Have a partner gym/clinic code? Type: redeem FITFIRST26',
-        size: 'xxs',
-        color: '#6B7280',
-        wrap: true,
-      }];
+    : [];
 
   const mealLines = log.meals.length > 0
     ? log.meals.map((m) => ({ type: 'text', text: `• ${m.title} (${m.calories} kcal, ${m.protein}g P)`, size: 'xs', color: '#4B5563', wrap: true }))
-    : [{ type: 'text', text: 'No meals cooked yet today — tap "✅ I Cooked This" after cooking!', size: 'xs', color: '#9CA3AF', wrap: true }];
+    : [{ type: 'text', text: 'No meals cooked yet today!', size: 'xs', color: '#9CA3AF', wrap: true }];
 
   return {
     type: 'flex',
-    altText: '📊 Daily Nutrition Stats',
+    altText: t(session, 'dailyMacros'),
     contents: {
       type: 'bubble',
       body: {
@@ -1213,25 +1233,25 @@ function buildStatsCard(session) {
         layout: 'vertical',
         spacing: 'md',
         contents: [
-          { type: 'text', text: `📊 Daily Macros (${today})`, weight: 'bold', size: 'lg', color: '#111827' },
+          { type: 'text', text: `${t(session, 'dailyMacros')} (${today})`, weight: 'bold', size: 'lg', color: '#111827' },
           ...gymSection,
-          { type: 'text', text: `🎯 Target: ${session.goals.label || `${calGoal} kcal | ${proGoal}g P`}`, size: 'xs', color: '#059669', weight: 'bold' },
+          { type: 'text', text: `${t(session, 'target')}: ${session.goals.label || `${calGoal} kcal | ${proGoal}g P`}`, size: 'xs', color: '#059669', weight: 'bold' },
           {
             type: 'box', layout: 'vertical', spacing: 'xs',
             contents: [
-              { type: 'text', text: `💪 Protein: ${log.protein}g / ${proGoal}g (${proPct}%)`, size: 'sm', weight: 'bold', color: '#047857' },
+              { type: 'text', text: `💪 ${t(session, 'protein')}: ${log.protein}g / ${proGoal}g (${proPct}%)`, size: 'sm', weight: 'bold', color: '#047857' },
               { type: 'box', layout: 'vertical', backgroundColor: '#E5E7EB', height: '8px', cornerRadius: 'md', contents: [{ type: 'box', layout: 'vertical', backgroundColor: '#10B981', height: '8px', width: `${Math.max(proPct, 4)}%`, cornerRadius: 'md', contents: [] }] },
             ],
           },
           {
             type: 'box', layout: 'vertical', spacing: 'xs',
             contents: [
-              { type: 'text', text: `🔥 Calories: ${log.calories} / ${calGoal} kcal (${calPct}%)`, size: 'sm', weight: 'bold', color: '#B45309' },
+              { type: 'text', text: `🔥 ${t(session, 'calories')}: ${log.calories} / ${calGoal} kcal (${calPct}%)`, size: 'sm', weight: 'bold', color: '#B45309' },
               { type: 'box', layout: 'vertical', backgroundColor: '#E5E7EB', height: '8px', cornerRadius: 'md', contents: [{ type: 'box', layout: 'vertical', backgroundColor: '#F59E0B', height: '8px', width: `${Math.max(calPct, 4)}%`, cornerRadius: 'md', contents: [] }] },
             ],
           },
           { type: 'separator' },
-          { type: 'text', text: '🍽️ Meals Logged Today:', size: 'xs', weight: 'bold', color: '#374151' },
+          { type: 'text', text: t(session, 'mealsLogged'), size: 'xs', weight: 'bold', color: '#374151' },
           ...mealLines,
         ],
       },
@@ -1240,33 +1260,33 @@ function buildStatsCard(session) {
         layout: 'vertical',
         spacing: 'xs',
         contents: [
-          { type: 'button', style: 'secondary', height: 'sm', action: { type: 'postback', label: '⚙️ Customize Calorie & Protein Goal', data: 'action=goal_menu', displayText: '⚙️ Customize Daily Macro Goals' } },
+          { type: 'button', style: 'secondary', height: 'sm', action: { type: 'postback', label: '⚙️ Customize Targets', data: 'action=goal_menu', displayText: '⚙️ Customize Daily Goals' } },
         ],
       },
     },
-    quickReply: getFilterQuickReplies(),
+    quickReply: getFilterQuickReplies(session),
   };
 }
 
 function buildGoalPickerCard(session) {
   return {
     type: 'flex',
-    altText: '⚙️ Set Daily Calorie & Protein Goal',
+    altText: '⚙️ Set Daily Targets',
     contents: {
       type: 'bubble',
       body: {
         type: 'box', layout: 'vertical', spacing: 'sm',
         contents: [
           { type: 'text', text: '⚙️ Set Your Daily Targets', weight: 'bold', size: 'lg', color: '#111827' },
-          { type: 'text', text: `Current: ${session.goals.calories} kcal | ${session.goals.protein}g protein\nChoose a preset below, or type: goal 2200 150`, size: 'xs', color: '#4B5563', wrap: true },
+          { type: 'text', text: `Current: ${session.goals.calories} kcal | ${session.goals.protein}g protein`, size: 'xs', color: '#4B5563', wrap: true },
         ],
       },
       footer: {
         type: 'box', layout: 'vertical', spacing: 'xs',
         contents: [
-          { type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'postback', label: '💪 Lean Bulk (2500 kcal | 150g P)', data: 'action=set_goal&cal=2500&pro=150&label=Lean+Bulk', displayText: 'Set goal: Lean Bulk (2500 kcal | 150g P)' } },
-          { type: 'button', style: 'primary', color: '#10B981', height: 'sm', action: { type: 'postback', label: '⚖️ Maintain (2000 kcal | 120g P)', data: 'action=set_goal&cal=2000&pro=120&label=Maintain', displayText: 'Set goal: Maintain (2000 kcal | 120g P)' } },
-          { type: 'button', style: 'secondary', height: 'sm', action: { type: 'postback', label: '🥗 Fat Loss / Cut (1650 kcal | 135g P)', data: 'action=set_goal&cal=1650&pro=135&label=Fat+Loss+Cut', displayText: 'Set goal: Fat Loss / Cut (1650 kcal | 135g P)' } },
+          { type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'postback', label: '💪 Lean Bulk (2500 kcal | 150g P)', data: 'action=set_goal&cal=2500&pro=150&label=Lean+Bulk', displayText: 'Set goal: Lean Bulk' } },
+          { type: 'button', style: 'primary', color: '#10B981', height: 'sm', action: { type: 'postback', label: '⚖️ Maintain (2000 kcal | 120g P)', data: 'action=set_goal&cal=2000&pro=120&label=Maintain', displayText: 'Set goal: Maintain' } },
+          { type: 'button', style: 'secondary', height: 'sm', action: { type: 'postback', label: '🥗 Fat Loss / Cut (1650 kcal | 135g P)', data: 'action=set_goal&cal=1650&pro=135&label=Fat+Loss+Cut', displayText: 'Set goal: Fat Loss / Cut' } },
         ],
       },
     },
@@ -1322,9 +1342,9 @@ function buildShoppingListCard(title, items, allIngredients = []) {
 // --- Gemini AI Generators (Multi-Language Supported) ---
 async function generateRecipesForSession(session, filterStyle = null) {
   const styleInstructions = {
-    budget_60: 'Focus strictly on STUDENT BUDGET-FRIENDLY meals costing UNDER 60 THB per serving using affordable local Thai ingredients.',
-    high_protein: 'Focus strictly on HIGH-PROTEIN fitness meals (40g+ protein per serving).',
-    quick_15m: 'Focus strictly on ULTRA-FAST meals ready in 15 MINUTES OR LESS total.',
+    budget_60: 'Focus strictly on STUDENT BUDGET-FRIENDLY meals costing UNDER 60 THB per serving.',
+    high_protein: 'Focus strictly on HIGH-PROTEIN fitness meals (40g+ protein).',
+    quick_15m: 'Focus strictly on ULTRA-FAST meals ready in 15 MINUTES OR LESS.',
     thai_style: 'Focus strictly on authentic THAI-STYLE dishes.',
   };
   const extraRule = filterStyle && styleInstructions[filterStyle] ? styleInstructions[filterStyle] : '';
@@ -1333,14 +1353,14 @@ async function generateRecipesForSession(session, filterStyle = null) {
     th: 'Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in natural THAI (ภาษาไทย).',
     en: 'Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in ENGLISH.',
     my: 'Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in natural BURMESE (မြန်မာဘာသာ).',
-    auto: 'Detect the language of the user\'s input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English) and write ALL output fields in THAT EXACT SAME LANGUAGE. If input is an image without text, write in English.',
+    auto: 'Detect the language of the user\'s input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English) and write ALL output fields in THAT EXACT SAME LANGUAGE.',
   };
   const chosenLangRule = langInstructions[session.lang] || langInstructions.auto;
 
   const schemaPrompt = `${extraRule}
 ${chosenLangRule}
 - ALWAYS keep "mainIngredient" in lowercase ENGLISH.
-- Compare EVERY ingredient required to cook the dish against what the user provided, and list missing items in "missingItems".
+- Compare EVERY ingredient required against what the user provided, and list missing items in "missingItems".
 
 Return ONLY valid JSON (no markdown) matching this exact format:
 {
@@ -1360,7 +1380,7 @@ Return ONLY valid JSON (no markdown) matching this exact format:
     }
   ]
 }
-Suggest 3 distinct, practical, delicious recipes.`;
+Suggest 3 distinct, practical recipes.`;
 
   const geminiContents = session.lastPromptType === 'image' && session.lastImageBase64
     ? [{ inlineData: { mimeType: 'image/jpeg', data: session.lastImageBase64 } }, `You are FridgeFriend, an AI chef. Identify ingredients in this photo and suggest 3 recipes. ${schemaPrompt}`]
@@ -1369,7 +1389,7 @@ Suggest 3 distinct, practical, delicious recipes.`;
   const response = await generateWithFallback(geminiContents, { responseMimeType: 'application/json' });
   const parsed = JSON.parse(response.text.replace(/```json|```/g, '').trim());
   const recipeList = Array.isArray(parsed) ? parsed : (parsed.recipes || parsed.meals || Object.values(parsed).find(Array.isArray) || []);
-  return buildRecipeCarousel(recipeList, true, filterStyle || '');
+  return buildRecipeCarousel(recipeList, session, true, filterStyle || '');
 }
 
 async function generateMealPlanForSession(session) {
@@ -1404,7 +1424,7 @@ Return ONLY valid JSON (no markdown) matching this exact format:
   const response = await generateWithFallback(geminiContents, { responseMimeType: 'application/json' });
   const parsed = JSON.parse(response.text.replace(/```json|```/g, '').trim());
   const normalizedPlan = Array.isArray(parsed) ? { days: parsed } : parsed;
-  return buildMealPlanCarousel(normalizedPlan);
+  return buildMealPlanCarousel(normalizedPlan, session);
 }
 
 // --- Webhook Event Handler ---
@@ -1443,10 +1463,10 @@ async function handleEvent(event) {
       session.lang = lang;
       saveDB();
       const confirmMap = {
-        th: '✅ ตั้งค่าเป็นภาษาไทยเรียบร้อย! ส่งรูปหรือพิมพ์รายการอาหารได้เลย 🍳',
-        en: '✅ Language set to English! Send a fridge photo or ingredients anytime 🍳',
-        my: '✅ မြန်မာဘာသာသို့ ပြောင်းလဲပြီးပါပြီ! ဓာတ်ပုံ သို့မဟုတ် ပါဝင်ပစ္စည်းများ ပို့နိုင်ပါပြီ 🍳',
-        auto: '✅ Auto-detect enabled! I will reply in whatever language you use 🌐',
+        th: '✅ ตั้งค่าเป็นภาษาไทยเรียบร้อย! เมนูและปุ่มทั้งหมดเปลี่ยนเป็นไทยแล้ว 🍳',
+        en: '✅ Language set to English! All buttons & menus are now in English 🍳',
+        my: '✅ မြန်မာဘာသာသို့ ပြောင်းလဲပြီးပါပြီ! ခလုတ်များနှင့် မီနူးများအားလုံး မြန်မာလိုဖြစ်သွားပါပြီ 🍳',
+        auto: '✅ Auto-detect enabled! 🌐',
       };
       if (session.lastPromptType) {
         if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
@@ -1480,7 +1500,7 @@ async function handleEvent(event) {
       const recipe = recipeStore.get(params.get('id'));
       const stepIdx = parseInt(params.get('step') || '0', 10);
       if (!recipe) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: 'Recipe expired—send your ingredients again! 🥦' }] });
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildSingleStepCard(recipe, stepIdx)] });
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildSingleStepCard(recipe, stepIdx, session)] });
     }
 
     if (action === 'timer') {
@@ -1518,12 +1538,7 @@ async function handleEvent(event) {
         messages: [{
           type: 'text',
           text: `❤️ Saved "${recipe.title}" to My Cookbook! (${session.saved.length} saved)`,
-          quickReply: {
-            items: [
-              { type: 'action', action: { type: 'message', label: '📖 Open My Cookbook', text: 'saved' } },
-              ...getFilterQuickReplies().items.slice(0, 4),
-            ],
-          },
+          quickReply: getFilterQuickReplies(session),
         }],
       });
     }
@@ -1583,21 +1598,20 @@ async function handleEvent(event) {
     const rawText = event.message.text.trim();
     const lower = rawText.toLowerCase();
 
-    // Quick text language shortcuts
     if (lower === 'burmese' || lower === 'မြန်မာ') {
       session.lang = 'my';
       saveDB();
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ မြန်မာဘာသာသို့ ပြောင်းလဲပြီးပါပြီ! ပါဝင်ပစ္စည်းများ ပို့ပါ။' }] });
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ မြန်မာဘာသာသို့ ပြောင်းလဲပြီးပါပြီ!' }] });
     }
     if (lower === 'thai' || lower === 'ไทย' || lower === 'ภาษาไทย') {
       session.lang = 'th';
       saveDB();
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ เปลี่ยนเป็นภาษาไทยเรียบร้อย! ส่งวัตถุดิบหรือรูปภาพได้เลย' }] });
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ เปลี่ยนเป็นภาษาไทยเรียบร้อย!' }] });
     }
     if (lower === 'english' || lower === 'en') {
       session.lang = 'en';
       saveDB();
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ Language switched to English! Send ingredients anytime.' }] });
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '✅ Language switched to English!' }] });
     }
 
     if (lower === 'help' || lower === 'menu' || lower === 'hi' || lower === 'hello' || lower === 'สวัสดี' || lower === 'မင်္ဂလာပါ') {
@@ -1614,10 +1628,7 @@ async function handleEvent(event) {
       const code = rawText.slice(7).trim().toUpperCase();
       const partnerInfo = B2B_PARTNER_CODES[code];
       if (!partnerInfo) {
-        return messagingClient.replyMessage({
-          replyToken: event.replyToken,
-          messages: [{ type: 'text', text: '❌ Invalid partner code.' }],
-        });
+        return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '❌ Invalid partner code.' }] });
       }
       if (!session.gymPartner) db.analytics.gymActivations = (db.analytics.gymActivations || 0) + 1;
       session.gymPartner = partnerInfo.partner;
@@ -1625,12 +1636,12 @@ async function handleEvent(event) {
       saveDB();
       return messagingClient.replyMessage({
         replyToken: event.replyToken,
-        messages: [{ type: 'text', text: `✅ Linked to ${partnerInfo.partner}! (${partnerInfo.calories} kcal | ${partnerInfo.protein}g P)` }, buildStatsCard(session)],
+        messages: [{ type: 'text', text: `✅ Linked to ${partnerInfo.partner}!` }, buildStatsCard(session)],
       });
     }
 
     if (lower === 'revenue' || lower === 'ads' || lower === 'business') {
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildB2BRevenueCard()] });
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildB2BRevenueCard(session)] });
     }
 
     if (lower === 'stats' || lower === 'macros') {
@@ -1638,8 +1649,8 @@ async function handleEvent(event) {
     }
 
     if (lower === 'saved' || lower === 'cookbook' || lower === 'favorites') {
-      if (session.saved.length === 0) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '📖 Your Cookbook is empty! Tap "❤️ Save" on any recipe card.' }] });
-      const savedCarousel = buildRecipeCarousel(session.saved, false);
+      if (session.saved.length === 0) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: '📖 Your Cookbook is empty!' }] });
+      const savedCarousel = buildRecipeCarousel(session.saved, session, false);
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [savedCarousel] });
     }
 
@@ -1688,7 +1699,7 @@ async function handleEvent(event) {
 
     const transcribeRes = await generateWithFallback([
       { inlineData: { mimeType: 'audio/m4a', data: base64Audio } },
-      'Extract ONLY the food ingredients spoken in this voice note as a concise comma-separated phrase, preserving the spoken language.',
+      'Extract ONLY the food ingredients spoken in this voice note as a concise comma-separated phrase.',
     ]);
 
     const spokenIngredients = transcribeRes.text.trim();
