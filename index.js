@@ -44,13 +44,14 @@ setInterval(() => {
   }
 }, 30 * 60 * 1000).unref();
 
-// --- Multi-Language UI Strings Dictionary ---
+// --- Multi-Language UI Strings Dictionary (Refined EN / TH / MY) ---
 const UI_STRINGS = {
   en: {
     bestMatch: '🏆 BEST MATCH',
     option: '✨ OPTION',
     uses: '🥬 Uses',
     need: '🛒 Need',
+    itemsUnit: 'items',
     readyCook: '✅ Ready to cook — 0 missing items!',
     cookBtn: "👨‍🍳 Let's Cook!",
     buyBtn: '🛒 Buy',
@@ -58,114 +59,140 @@ const UI_STRINGS = {
     saveBtn: '❤️ Save',
     stepTitle: 'STEP',
     of: 'OF',
-    prepCheck: '📋 Prep Checklist:',
+    nextStepBtn: 'Next Step',
+    setTimerBtn: '⏱️ Set Timer',
+    minsUnit: 'm',
+    prepCheck: '📋 Complete Ingredients Needed:',
     cookedBtn: '✅ I Cooked This',
     dailyMacros: '📊 Daily Macros',
     target: '🎯 Target',
     protein: 'Protein',
     calories: 'Calories',
     mealsLogged: '🍽️ Meals Logged Today:',
+    missingHeader: '🛒 Missing Ingredients to Buy',
+    fullRecipeHeader: '📋 Complete Recipe Ingredients (Have + Need):',
+    havePrefix: '✅ Have',
+    needPrefix: '🛒 Need',
     verifyTitle: '🔍 Verify Scanned Ingredients',
     verifySubtitle: 'We detected these items in your photo. Are they correct?',
     confirmBtn: '✅ Correct & Find Recipes',
     editBtn: '✏️ Edit Ingredients',
     confirmedHeader: '🍳 Finding delicious recipes for your items...',
     // --- Edit flow ---
-    detected: 'Detected',
+    detected: 'Detected ingredients',
     editChoiceTitle: '✏️ Edit Ingredients',
-    editChoiceSubtitle: 'What would you like to do?',
+    editChoiceSubtitle: 'Would you like to add missing items or remove wrong ones?',
     addBtn: '➕ Add ingredients',
     deleteBtn: '➖ Delete ingredients',
     cancelBtn: '↩️ Back to list',
-    addPrompt: '➕ Type the ingredients you want to ADD (e.g., egg, tomato):',
-    deletePrompt: '➖ Type the ingredients you want to DELETE from the list (e.g., garlic, tomato):',
+    addPrompt: '➕ Type the ingredients you want to ADD, separated by commas (e.g., egg, tomato, fish sauce):',
+    deletePrompt: '➖ Type the ingredients you want to REMOVE from the list (e.g., garlic, tomato):',
     addedMsg: 'Added',
     removedMsg: 'Removed',
+    alreadyInListMsg: 'Already in list',
     notFoundMsg: 'Not found in list',
     noChange: 'No changes made.',
-    emptyList: '(list is empty)',
-    emptyConfirm: 'Your ingredient list is empty — please add some ingredients first.',
-    expired: 'This list expired — please send your ingredients or photo again. 🥦📸',
+    emptyList: '(Your ingredient list is empty)',
+    emptyConfirm: '⚠️ Your ingredient list is empty — please add at least 1 ingredient first.',
+    expired: '⚠️ This list expired — please send your ingredients or photo again. 🥦📸',
   },
   th: {
     bestMatch: '🏆 แนะนำที่สุด',
-    option: '✨ ตัวเลือก',
-    uses: '🥬 มีวัตถุดิบ',
+    option: '✨ เมนูที่',
+    uses: '🥬 ใช้วัตถุดิบที่มี',
     need: '🛒 ต้องซื้อเพิ่ม',
-    readyCook: '✅ พร้อมทำ — มีครบทุกอย่าง!',
+    itemsUnit: 'อย่าง',
+    readyCook: '✅ พร้อมทำทันที — วัตถุดิบครบ!',
     cookBtn: '👨‍🍳 เริ่มทำอาหาร',
     buyBtn: '🛒 ซื้อเพิ่ม',
-    readyBtn: '✅ พร้อมแล้ว',
+    readyBtn: '✅ ครบแล้ว',
     saveBtn: '❤️ บันทึก',
     stepTitle: 'ขั้นตอนที่',
     of: 'จาก',
-    prepCheck: '📋 รายการเตรียมวัตถุดิบ:',
+    nextStepBtn: 'ขั้นตอนถัดไป',
+    setTimerBtn: '⏱️ ตั้งเวลา',
+    minsUnit: 'นาที',
+    prepCheck: '📋 วัตถุดิบและเครื่องปรุงทั้งหมดที่ใช้:',
     cookedBtn: '✅ ทำเมนูนี้เสร็จแล้ว',
     dailyMacros: '📊 สรุปสารอาหารประจำวัน',
     target: '🎯 เป้าหมาย',
     protein: 'โปรตีน',
-    calories: 'แคลอรี่',
-    mealsLogged: '🍽️ เมนูที่ทำวันนี้:',
-    verifyTitle: '🔍 ตรวจสอบวัตถุดิบที่สแกน',
-    verifySubtitle: 'ระบบตรวจพบวัตถุดิบเหล่านี้จากรูปภาพ ถูกต้องไหม?',
+    calories: 'แคลอรี',
+    mealsLogged: '🍽️ เมนูที่ทานวันนี้:',
+    missingHeader: '🛒 วัตถุดิบที่ต้องซื้อเพิ่ม',
+    fullRecipeHeader: '📋 วัตถุดิบทั้งหมดของเมนูนี้ (ที่มี + ต้องซื้อเพิ่ม):',
+    havePrefix: '✅ มีแล้ว',
+    needPrefix: '🛒 ซื้อเพิ่ม',
+    verifyTitle: '🔍 ตรวจสอบวัตถุดิบที่สแกนพบ',
+    verifySubtitle: 'ตรวจพบวัตถุดิบตามรายการนี้ ครบถูกต้องไหม?',
     confirmBtn: '✅ ถูกต้อง & ค้นหาเมนู',
-    editBtn: '✏️ แก้ไขวัตถุดิบ',
-    confirmedHeader: '🍳 กำลังค้นหาเมนูอร่อยจากวัตถุดิบของคุณ...',
-    detected: 'ตรวจพบ',
-    editChoiceTitle: '✏️ แก้ไขวัตถุดิบ',
-    editChoiceSubtitle: 'คุณต้องการทำอะไร?',
+    editBtn: '✏️ แก้ไขรายการวัตถุดิบ',
+    confirmedHeader: '🍳 กำลังคิดค้นเมนูอร่อยจากวัตถุดิบของคุณ...',
+    detected: 'วัตถุดิบที่พบทั้งหมด',
+    editChoiceTitle: '✏️ แก้ไขรายการวัตถุดิบ',
+    editChoiceSubtitle: 'ต้องการเพิ่มวัตถุดิบที่ตกหล่น หรือลบรายการที่ไม่ใช่ออก?',
     addBtn: '➕ เพิ่มวัตถุดิบ',
     deleteBtn: '➖ ลบวัตถุดิบ',
-    cancelBtn: '↩️ กลับไปที่รายการ',
-    addPrompt: '➕ พิมพ์วัตถุดิบที่ต้องการ "เพิ่ม" (เช่น ไข่, มะเขือเทศ):',
-    deletePrompt: '➖ พิมพ์วัตถุดิบที่ต้องการ "ลบ" ออกจากรายการ (เช่น กระเทียม, มะเขือเทศ):',
-    addedMsg: 'เพิ่มแล้ว',
-    removedMsg: 'ลบแล้ว',
+    cancelBtn: '↩️ กลับไปหน้ารายการ',
+    addPrompt: '➕ พิมพ์ชื่อวัตถุดิบที่ต้องการ "เพิ่ม" คั่นด้วยลูกน้ำ (เช่น ไข่ไก่, มะเขือเทศ, น้ำปลา):',
+    deletePrompt: '➖ พิมพ์ชื่อวัตถุดิบที่ต้องการ "ลบ" ออกจากรายการ (เช่น กระเทียม, มะเขือเทศ):',
+    addedMsg: 'เพิ่มเรียบร้อย',
+    removedMsg: 'ลบเรียบร้อย',
+    alreadyInListMsg: 'มีในรายการอยู่แล้ว',
     notFoundMsg: 'ไม่พบในรายการ',
-    noChange: 'ไม่มีการเปลี่ยนแปลง',
-    emptyList: '(รายการว่าง)',
-    emptyConfirm: 'รายการวัตถุดิบว่างอยู่ — กรุณาเพิ่มวัตถุดิบก่อน',
-    expired: 'รายการนี้หมดอายุแล้ว — กรุณาส่งวัตถุดิบหรือรูปภาพใหม่อีกครั้ง 🥦📸',
+    noChange: 'ไม่มีการเปลี่ยนแปลงรายการ',
+    emptyList: '(ยังไม่มีวัตถุดิบในรายการ)',
+    emptyConfirm: '⚠️ รายการวัตถุดิบยังว่างอยู่ — กรุณากดเพิ่มวัตถุดิบก่อนนะครับ',
+    expired: '⚠️ รายการนี้หมดอายุแล้ว — กรุณาส่งรูปหรือพิมพ์วัตถุดิบใหม่อีกครั้ง 🥦📸',
   },
   my: {
     bestMatch: '🏆 အသင့်တော်ဆုံး',
-    option: '✨ ရွေးချယ်စရာ',
-    uses: '🥬 ပါဝင်ပစ္စည်းများ',
-    need: '🛒 ဝယ်ယူရန်',
-    readyCook: '✅ ချက်ပြုတ်ရန် အသင့်ဖြစ်ပါပြီ — လိုအပ်သည်များ မရှိပါ!',
+    option: '✨ ဟင်းပွဲ',
+    uses: '🥬 သုံးထားသည့်အမယ်',
+    need: '🛒 ထပ်လိုသည့်အမယ်',
+    itemsUnit: 'မျိုး',
+    readyCook: '✅ ချက်ပြုတ်ရန် အသင့်ပဲ — လိုအပ်တာမရှိပါ!',
     cookBtn: '👨‍🍳 ချက်ပြုတ်မည်',
-    buyBtn: '🛒 ဝယ်ယူရန်',
-    readyBtn: '✅ အသင့်ရှိ',
-    saveBtn: '❤️ သိမ်းဆည်းမည်',
+    buyBtn: '🛒 ဝယ်ရန်',
+    readyBtn: '✅ အသင့်ပဲ',
+    saveBtn: '❤️ သိမ်းမည်',
     stepTitle: 'အဆင့်',
     of: '/',
-    prepCheck: '📋 ပြင်ဆင်ရန်စာရင်း:',
+    nextStepBtn: 'နောက်တစ်ဆင့်',
+    setTimerBtn: '⏱️ အချိန်မှတ်ရန်',
+    minsUnit: 'မိနစ်',
+    prepCheck: '📋 ပါဝင်ပစ္စည်းနှင့် အချိုးအစား အပြည့်အစုံ:',
     cookedBtn: '✅ ချက်ပြုတ်ပြီးပါပြီ',
-    dailyMacros: '📊 ယနေ့ အာဟာရစားသုံးမှု',
-    target: '🎯 ပန်းတိုင်',
+    dailyMacros: '📊 ယနေ့ အာဟာရမှတ်တမ်း',
+    target: '🎯 ရည်မှန်းချက်',
     protein: 'ပရိုတင်း',
     calories: 'ကယ်လိုရီ',
-    mealsLogged: '🍽️ ယနေ့ ချက်ပြုတ်ခဲ့သည့် ဟင်းပွဲများ:',
-    verifyTitle: '🔍 စစ်ဆေးရန် ပါဝင်ပစ္စည်းများ',
-    verifySubtitle: 'သင့်ပုံထဲတွင် ဤပစ္စည်းများကို တွေ့ရှိရပါသည်။ မှန်ကန်ပါသလား?',
-    confirmBtn: '✅ မှန်ကန်သည် & ဟင်းပွဲရှာမည်',
-    editBtn: '✏️ ပြင်ဆင်မည်',
-    confirmedHeader: '🍳 ဟင်းချက်နည်းများကို ရှာဖွေနေပါပြီ...',
-    detected: 'တွေ့ရှိသည်',
-    editChoiceTitle: '✏️ ပါဝင်ပစ္စည်းများ ပြင်ဆင်ရန်',
-    editChoiceSubtitle: 'ဘာလုပ်ချင်ပါသလဲ?',
-    addBtn: '➕ ထပ်ထည့်မည်',
-    deleteBtn: '➖ ဖျက်မည်',
+    mealsLogged: '🍽️ ယနေ့ ချက်ပြုတ်စားသုံးခဲ့သော ဟင်းပွဲများ:',
+    missingHeader: '🛒 ထပ်မံဝယ်ယူရန် လိုအပ်သော ပစ္စည်းများ',
+    fullRecipeHeader: '📋 ဤဟင်းပွဲအတွက် လိုအပ်သော ပစ္စည်းအားလုံး:',
+    havePrefix: '✅ ရှိပြီး',
+    needPrefix: '🛒 လိုအပ်',
+    verifyTitle: '🔍 ဖတ်မိသော အမယ်များကို စစ်ဆေးပါ',
+    verifySubtitle: 'ပုံထဲမှ အောက်ပါအမယ်များကို တွေ့ရှိထားပါသည်။ မှန်ကန်ပါသလား?',
+    confirmBtn: '✅ မှန်ကန်သည် • ဟင်းပွဲရှာမည်',
+    editBtn: '✏️ စာရင်း ပြင်ဆင်မည်',
+    confirmedHeader: '🍳 သင့်အမယ်များဖြင့် အရသာရှိသော ဟင်းချက်နည်းများ ရှာဖွေနေပါပြီ...',
+    detected: 'တွေ့ရှိထားသော အမယ်စုစုပေါင်း',
+    editChoiceTitle: '✏️ အမယ်စာရင်း ပြင်ဆင်ရန်',
+    editChoiceSubtitle: 'ကျန်နေသော အမယ်များ ထပ်ထည့်မလား သို့မဟုတ် မှားနေသည်ကို ဖျက်မလား?',
+    addBtn: '➕ အမယ် ထပ်ထည့်မည်',
+    deleteBtn: '➖ အမယ် ဖျက်မည်',
     cancelBtn: '↩️ စာရင်းသို့ ပြန်သွားမည်',
-    addPrompt: '➕ စာရင်းထဲသို့ ထပ်ထည့်လိုသော ပါဝင်ပစ္စည်းများကို ရိုက်ထည့်ပါ (ဥပမာ - ကြက်ဥ၊ ခရမ်းချဉ်သီး):',
-    deletePrompt: '➖ စာရင်းထဲမှ ဖျက်လိုသော ပါဝင်ပစ္စည်းများကို ရိုက်ထည့်ပါ (ဥပမာ - ကြက်သွန်ဖြူ၊ ခရမ်းချဉ်သီး):',
-    addedMsg: 'ထပ်ထည့်ပြီး',
-    removedMsg: 'ဖျက်ပြီး',
+    addPrompt: '➕ ထပ်ထည့်လိုသော အမယ်များကို ကော်မာ (,) ခံ၍ ရိုက်ပို့ပေးပါ (ဥပမာ - ကြက်ဥ၊ ခရမ်းချဉ်သီး၊ ငံပြာရည်):',
+    deletePrompt: '➖ စာရင်းထဲမှ ဖျက်လိုသော အမယ်များကို ရိုက်ပို့ပေးပါ (ဥပမာ - ကြက်သွန်ဖြူ၊ ခရမ်းချဉ်သီး):',
+    addedMsg: 'ထပ်ထည့်ပြီးပါပြီ',
+    removedMsg: 'ဖျက်ပြီးပါပြီ',
+    alreadyInListMsg: 'စာရင်းထဲ ရှိပြီးသားဖြစ်သည်',
     notFoundMsg: 'စာရင်းထဲတွင် မတွေ့ပါ',
     noChange: 'ပြောင်းလဲမှု မရှိပါ။',
-    emptyList: '(စာရင်း ကွက်လပ်ဖြစ်နေသည်)',
-    emptyConfirm: 'စာရင်း ကွက်လပ်ဖြစ်နေသည် — ပါဝင်ပစ္စည်းများ အရင်ထည့်ပါ။',
-    expired: 'ဤစာရင်း သက်တမ်းကုန်သွားပါပြီ — ပါဝင်ပစ္စည်း သို့မဟုတ် ဓာတ်ပုံ ထပ်ပို့ပါ။ 🥦📸',
+    emptyList: '(အမယ်စာရင်း ဗလာဖြစ်နေပါသည်)',
+    emptyConfirm: '⚠️ အမယ်စာရင်း ဗလာဖြစ်နေပါသည် — ကျေးဇူးပြု၍ အမယ်အချို့ အရင်ထည့်ပေးပါ။',
+    expired: '⚠️ ဤစာရင်း သက်တမ်းကုန်သွားပါပြီ — ဓာတ်ပုံ သို့မဟုတ် အမယ်များ ပြန်ပို့ပေးပါ။ 🥦📸',
   },
 };
 
@@ -329,7 +356,7 @@ function recordPantryTrends(rawIngredientsText = '', missingItemsList = []) {
     for (const raw of missingItemsList) {
       if (!raw || raw.startsWith('None')) continue;
       const clean = raw
-        .replace(/^[\d./]+\s*(?:tbsp|tsp|cup|cups|g|kg|ml|l|pcs|cloves|bunch|bottle)?\s*/i, '')
+        .replace(/^[\d./]+\s*(?:tbsp|tsp|cup|cups|g|kg|ml|l|pcs|cloves|bunch|bottle|ช้อนโต๊ะ|ช้อนชา|กรัม|ขีด|ถ้วย|ฟอง|หัว|กลีบ|ဇွန်း|ဂရမ်|လုံး|တောင့်|ပွင့်)?\s*/i, '')
         .trim()
         .toLowerCase();
       if (clean.length >= 2) {
@@ -701,7 +728,7 @@ function buildPantryVerificationCard(items, batchId, session) {
 
   return {
     type: 'flex',
-    altText: '🔍 Verify Scanned Ingredients',
+    altText: t(session, 'verifyTitle'),
     contents: {
       type: 'bubble',
       header: {
@@ -736,13 +763,13 @@ function buildPantryVerificationCard(items, batchId, session) {
             style: 'primary',
             color: '#10B981',
             height: 'sm',
-            action: { type: 'postback', label: t(session, 'confirmBtn'), data: `action=pantry_confirm&batch=${batchId}`, displayText: 'Confirm ingredients and find recipes 🍳' },
+            action: { type: 'postback', label: t(session, 'confirmBtn'), data: `action=pantry_confirm&batch=${batchId}`, displayText: t(session, 'confirmBtn') },
           },
           {
             type: 'button',
             style: 'secondary',
             height: 'sm',
-            action: { type: 'postback', label: t(session, 'editBtn'), data: `action=pantry_edit&batch=${batchId}`, displayText: 'I want to edit my ingredients ✏️' },
+            action: { type: 'postback', label: t(session, 'editBtn'), data: `action=pantry_edit&batch=${batchId}`, displayText: t(session, 'editBtn') },
           },
         ],
       },
@@ -778,20 +805,20 @@ function buildPantryEditChoiceCard(batchId, session) {
             style: 'primary',
             color: '#10B981',
             height: 'sm',
-            action: { type: 'postback', label: t(session, 'addBtn'), data: `action=pantry_mode&mode=add&batch=${batchId}`, displayText: '➕ Add ingredients' },
+            action: { type: 'postback', label: t(session, 'addBtn'), data: `action=pantry_mode&mode=add&batch=${batchId}`, displayText: t(session, 'addBtn') },
           },
           {
             type: 'button',
             style: 'primary',
             color: '#DC2626',
             height: 'sm',
-            action: { type: 'postback', label: t(session, 'deleteBtn'), data: `action=pantry_mode&mode=delete&batch=${batchId}`, displayText: '➖ Delete ingredients' },
+            action: { type: 'postback', label: t(session, 'deleteBtn'), data: `action=pantry_mode&mode=delete&batch=${batchId}`, displayText: t(session, 'deleteBtn') },
           },
           {
             type: 'button',
             style: 'secondary',
             height: 'sm',
-            action: { type: 'postback', label: t(session, 'cancelBtn'), data: `action=pantry_cancel&batch=${batchId}`, displayText: '↩️ Back to list' },
+            action: { type: 'postback', label: t(session, 'cancelBtn'), data: `action=pantry_cancel&batch=${batchId}`, displayText: t(session, 'cancelBtn') },
           },
         ],
       },
@@ -1031,14 +1058,37 @@ function buildRecipeCarousel(recipes, session, includeQuickReplies = true, filte
     : [{
         title: 'Thai Garlic Chicken Stir-Fry',
         emoji: '🍗',
-        usedIngredients: ['Chicken breast', 'Garlic'],
+        usedIngredients: ['200g chicken breast', '4 cloves garlic'],
         calories: 460,
         protein: 38,
         costThb: 45,
         time: '15m',
-        allIngredients: ['200g chicken breast', '2 cloves garlic', '1 tbsp soy sauce', '1 tbsp cooking oil', '1 cup steamed rice'],
-        missingItems: ['1 tbsp soy sauce', '1 tbsp cooking oil', '1 cup steamed rice'],
-        steps: ['Slice chicken and mince garlic.', 'Stir-fry over medium-high heat for 8 minutes.', 'Season with soy sauce and serve hot over rice!'],
+        allIngredients: [
+          '200g chicken breast, thinly sliced',
+          '4 cloves garlic, finely minced',
+          '1 tbsp vegetable oil',
+          '1 tbsp oyster sauce',
+          '1 tbsp light soy sauce',
+          '1/2 tsp sugar',
+          '1/4 tsp ground white pepper',
+          '2 tbsp water or stock',
+          '1 cup warm jasmine rice',
+        ],
+        missingItems: [
+          '1 tbsp vegetable oil',
+          '1 tbsp oyster sauce',
+          '1 tbsp light soy sauce',
+          '1/2 tsp sugar',
+          '1/4 tsp ground white pepper',
+          '1 cup warm jasmine rice',
+        ],
+        steps: [
+          'Prep: Slice 200g chicken breast into bite-sized strips across the grain and finely mince 4 cloves of garlic.',
+          'Aromatics: Heat 1 tbsp vegetable oil in a wok or pan over medium-high heat. Add minced garlic and stir-fry for 30 seconds until golden and fragrant.',
+          'Sear Protein: Add the sliced chicken breast in a single layer and stir-fry for 3 to 4 minutes until the outside turns opaque white.',
+          'Season: Pour in 1 tbsp oyster sauce, 1 tbsp light soy sauce, 1/2 tsp sugar, and 2 tbsp water. Toss continuously for 2 minutes until the sauce glazes the chicken.',
+          'Finish & Serve: Sprinkle with 1/4 tsp white pepper, plate over 1 cup of warm jasmine rice, and serve hot!',
+        ],
       }];
 
   const cardThemes = [
@@ -1050,11 +1100,18 @@ function buildRecipeCarousel(recipes, session, includeQuickReplies = true, filte
   ];
 
   const enriched = safeRecipes.map((recipe) => {
-    const allIngredients = Array.isArray(recipe.allIngredients) ? recipe.allIngredients : [];
-    const missing = Array.isArray(recipe.missingItems) && recipe.missingItems.length > 0 ? recipe.missingItems : ['None — ready!'];
-    const hasMissing = !/^none/i.test(missing[0]);
-    const totalCount = Math.max(allIngredients.length, (hasMissing ? missing.length : 0) + 2);
-    const matchPct = hasMissing ? Math.max(40, Math.round(((totalCount - missing.length) / totalCount) * 100)) : 100;
+    const allIngredients = Array.isArray(recipe.allIngredients) ? recipe.allIngredients.filter(Boolean) : [];
+    const missing = Array.isArray(recipe.missingItems) && recipe.missingItems.length > 0
+      ? recipe.missingItems.filter(Boolean)
+      : ['None — ready!'];
+    const hasMissing = missing.length > 0 && !/^(none|ไม่มี|မရှိ)/i.test(missing[0].trim());
+    const usedCount = Array.isArray(recipe.usedIngredients) && recipe.usedIngredients.length > 0
+      ? recipe.usedIngredients.length
+      : Math.max(1, allIngredients.length - (hasMissing ? missing.length : 0));
+    const totalCount = Math.max(allIngredients.length, usedCount + (hasMissing ? missing.length : 0), 1);
+    const matchPct = hasMissing
+      ? Math.max(35, Math.min(95, Math.round(((totalCount - missing.length) / totalCount) * 100)))
+      : 100;
     return { ...recipe, allIngredients, missing, hasMissing, matchPct };
   }).sort((a, b) => b.matchPct - a.matchPct);
 
@@ -1073,8 +1130,8 @@ function buildRecipeCarousel(recipes, session, includeQuickReplies = true, filte
     const { allIngredients, missing, hasMissing, matchPct } = recipe;
 
     const usedList = Array.isArray(recipe.usedIngredients) && recipe.usedIngredients.length > 0
-      ? recipe.usedIngredients.slice(0, 3).join(', ')
-      : allIngredients.slice(0, 3).join(', ') || 'Your fridge ingredients';
+      ? recipe.usedIngredients.slice(0, 4).join(', ')
+      : allIngredients.slice(0, 4).join(', ') || 'Your fridge ingredients';
 
     const steps = Array.isArray(recipe.steps) && recipe.steps.length > 0
       ? recipe.steps
@@ -1083,13 +1140,32 @@ function buildRecipeCarousel(recipes, session, includeQuickReplies = true, filte
     recordPantryTrends('', missing);
 
     const sponsor = getContextualSponsor(`${title} ${recipe.mainIngredient || ''}`, filterStyle, usedSponsors);
-    const normalizedRecipe = { ...recipe, id: recipeId, title, time, calories, protein, costThb, macros: `${calories} kcal | ${protein}g P`, allIngredients, missingItems: missing, steps, sponsor };
+    const normalizedRecipe = {
+      ...recipe,
+      id: recipeId,
+      title,
+      time,
+      calories,
+      protein,
+      costThb,
+      macros: `${calories} kcal | ${protein}g P`,
+      usedIngredients: Array.isArray(recipe.usedIngredients) ? recipe.usedIngredients : [],
+      allIngredients,
+      missingItems: missing,
+      steps,
+      sponsor,
+    };
     recipeStore.set(recipeId, normalizedRecipe);
 
     const topTag = idx === 0 ? t(session, 'bestMatch') : `${t(session, 'option')} #${idx + 1}`;
+    // Show up to 4 missing ingredient names cleanly on the card preview
     const missingCleanNames = missing
-      .slice(0, 2)
-      .map((m) => m.replace(/^[\d./]+\s*(?:tbsp|tsp|cup|cups|g|kg|ml|l|pcs|cloves|bunch|bottle)?\s*/i, '').trim())
+      .slice(0, 4)
+      .map((m) =>
+        m
+          .replace(/^[\d./]+\s*(?:tbsp|tsp|cup|cups|g|kg|ml|l|pcs|cloves|bunch|bottle|ช้อนโต๊ะ|ช้อนชา|กรัม|ขีด|ถ้วย|ฟอง|หัว|กลีบ|ลูก|ต้น|ใบ|ဇွန်း|ဂရမ်|လုံး|တောင့်|ပွင့်|ခွက်)?\s*/i, '')
+          .trim()
+      )
       .join(', ');
 
     bubbles.push({
@@ -1220,7 +1296,7 @@ function buildRecipeCarousel(recipes, session, includeQuickReplies = true, filte
               {
                 type: 'text',
                 text: hasMissing
-                  ? `${t(session, 'need')}: ${missing.length} item${missing.length > 1 ? 's' : ''} (${missingCleanNames}${missing.length > 2 ? '...' : ''})`
+                  ? `${t(session, 'need')} (${missing.length} ${t(session, 'itemsUnit')}): ${missingCleanNames}${missing.length > 4 ? '...' : ''}`
                   : t(session, 'readyCook'),
                 size: 'xs',
                 color: hasMissing ? '#DC2626' : '#059669',
@@ -1359,7 +1435,7 @@ function buildMealPlanCarousel(planData, session) {
   return { type: 'flex', altText: '🗓️ 3-Day Zero-Waste Meal Plan', contents: { type: 'carousel', contents: dayBubbles }, quickReply: getFilterQuickReplies(session) };
 }
 
-// --- Enhanced Cook Mode Card ---
+// --- Enhanced Cook Mode Card (Shows Full Ingredient + Missing Breakdown on Step 1) ---
 function buildSingleStepCard(recipe, stepIndex, session) {
   const total = recipe.steps.length;
   const currentStep = recipe.steps[stepIndex] || 'Enjoy your meal!';
@@ -1369,14 +1445,47 @@ function buildSingleStepCard(recipe, stepIndex, session) {
   const footerButtons = [];
 
   if (detectedMinutes && detectedMinutes > 0) {
-    footerButtons.push({ type: 'button', style: 'secondary', height: 'sm', action: { type: 'postback', label: `⏱️ Set ${detectedMinutes}m Timer`, data: `action=timer&mins=${detectedMinutes}&title=${encodeURIComponent(recipe.title)}`, displayText: `Set ${detectedMinutes}-minute timer ⏱️` } });
+    footerButtons.push({
+      type: 'button',
+      style: 'secondary',
+      height: 'sm',
+      action: {
+        type: 'postback',
+        label: `${t(session, 'setTimerBtn')} (${detectedMinutes} ${t(session, 'minsUnit')})`,
+        data: `action=timer&mins=${detectedMinutes}&title=${encodeURIComponent(recipe.title)}`,
+        displayText: `Set ${detectedMinutes}-minute timer ⏱️`,
+      },
+    });
   }
   if (!isLast) {
-    footerButtons.push({ type: 'button', style: 'primary', color: '#10B981', height: 'sm', action: { type: 'postback', label: `Next Step (${stepIndex + 2}/${total}) ➡️`, data: `action=cook&id=${recipe.id}&step=${stepIndex + 1}`, displayText: `Step ${stepIndex + 2}` } });
+    footerButtons.push({
+      type: 'button',
+      style: 'primary',
+      color: '#10B981',
+      height: 'sm',
+      action: {
+        type: 'postback',
+        label: `${t(session, 'nextStepBtn')} (${stepIndex + 2}/${total}) ➡️`,
+        data: `action=cook&id=${recipe.id}&step=${stepIndex + 1}`,
+        displayText: `${t(session, 'stepTitle')} ${stepIndex + 2}`,
+      },
+    });
   } else {
-    footerButtons.push({ type: 'button', style: 'primary', color: '#059669', height: 'sm', action: { type: 'postback', label: `${t(session, 'cookedBtn')} (+${recipe.protein}g Protein)`, data: `action=log_meal&id=${recipe.id}`, displayText: `Logged ${recipe.title}! 💪` } });
+    footerButtons.push({
+      type: 'button',
+      style: 'primary',
+      color: '#059669',
+      height: 'sm',
+      action: {
+        type: 'postback',
+        label: `${t(session, 'cookedBtn')} (+${recipe.protein}g P)`,
+        data: `action=log_meal&id=${recipe.id}`,
+        displayText: `Logged ${recipe.title}! 💪`,
+      },
+    });
   }
 
+  const hasMissing = Array.isArray(recipe.missingItems) && recipe.missingItems.length > 0 && !/^(none|ไม่มี|မရှိ)/i.test(recipe.missingItems[0] || '');
   const prepCheck = stepIndex === 0 && Array.isArray(recipe.allIngredients) && recipe.allIngredients.length > 0
     ? [
         {
@@ -1384,11 +1493,31 @@ function buildSingleStepCard(recipe, stepIndex, session) {
           layout: 'vertical',
           backgroundColor: '#F8FAFC',
           cornerRadius: 'md',
-          paddingAll: 'sm',
+          paddingAll: 'md',
           spacing: 'xs',
           contents: [
-            { type: 'text', text: t(session, 'prepCheck'), size: 'xxs', weight: 'bold', color: '#475569' },
-            { type: 'text', text: recipe.allIngredients.join(' • '), size: 'xxs', color: '#334155', wrap: true },
+            { type: 'text', text: t(session, 'prepCheck'), size: 'xs', weight: 'bold', color: '#0F172A' },
+            ...recipe.allIngredients.map((ing) => ({
+              type: 'text',
+              text: `• ${ing}`,
+              size: 'xs',
+              color: '#334155',
+              wrap: true,
+            })),
+            ...(hasMissing
+              ? [
+                  { type: 'separator', margin: 'sm' },
+                  {
+                    type: 'text',
+                    text: `${t(session, 'needPrefix')} (${recipe.missingItems.length}): ${recipe.missingItems.join(', ')}`,
+                    size: 'xxs',
+                    color: '#DC2626',
+                    weight: 'bold',
+                    wrap: true,
+                    margin: 'xs',
+                  },
+                ]
+              : []),
           ],
         },
       ]
@@ -1396,7 +1525,7 @@ function buildSingleStepCard(recipe, stepIndex, session) {
 
   return {
     type: 'flex',
-    altText: `Step ${stepIndex + 1}/${total}: ${recipe.title}`,
+    altText: `${t(session, 'stepTitle')} ${stepIndex + 1}/${total}: ${recipe.title}`,
     contents: {
       type: 'bubble',
       body: {
@@ -1531,21 +1660,32 @@ function buildGoalPickerCard(session) {
   };
 }
 
-function buildShoppingListCard(title, items, allIngredients = []) {
-  const missingRows = items.map((item) => ({
-    type: 'box', layout: 'horizontal', spacing: 'sm', margin: 'sm',
-    contents: [{ type: 'text', text: '⬜', size: 'sm', flex: 0 }, { type: 'text', text: item, size: 'sm', color: '#DC2626', weight: 'bold', wrap: true, flex: 1 }],
-  }));
+function buildShoppingListCard(title, items, allIngredients = [], session = null) {
+  const hasRealMissing = Array.isArray(items) && items.length > 0 && !/^(none|ไม่มี|မရှိ)/i.test(items[0] || '');
+  const missingRows = hasRealMissing
+    ? items.map((item) => ({
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'sm',
+        margin: 'sm',
+        contents: [
+          { type: 'text', text: '🛒', size: 'sm', flex: 0 },
+          { type: 'text', text: item, size: 'sm', color: '#DC2626', weight: 'bold', wrap: true, flex: 1 },
+        ],
+      }))
+    : [{ type: 'text', text: t(session, 'readyCook'), size: 'sm', color: '#059669', weight: 'bold', margin: 'sm', wrap: true }];
 
   const fullListSection = Array.isArray(allIngredients) && allIngredients.length > 0
     ? [
         { type: 'separator', margin: 'md' },
-        { type: 'text', text: '📋 Full Recipe Ingredients:', size: 'xs', weight: 'bold', color: '#374151', margin: 'md' },
+        { type: 'text', text: t(session, 'fullRecipeHeader'), size: 'xs', weight: 'bold', color: '#374151', margin: 'md', wrap: true },
         ...allIngredients.map((ing) => ({ type: 'text', text: `• ${ing}`, size: 'xs', color: '#4B5563', wrap: true })),
       ]
     : [];
 
-  const firstCleanItem = (items[0] || 'groceries').replace(/^[\d./]+\s*(?:tbsp|tsp|cup|cups|g|kg|ml|l|pcs|cloves|bunch|bottle)?\s*/i, '').trim();
+  const firstCleanItem = (items[0] || 'groceries')
+    .replace(/^[\d./]+\s*(?:tbsp|tsp|cup|cups|g|kg|ml|l|pcs|cloves|bunch|bottle|ช้อนโต๊ะ|ช้อนชา|กรัม|ขีด|ถ้วย|ฟอง|หัว|กลีบ|ဇွန်း|ဂရမ်|လုံး|တောင့်)?\s*/i, '')
+    .trim();
   const query = encodeURIComponent(firstCleanItem || 'chicken');
 
   return {
@@ -1556,7 +1696,7 @@ function buildShoppingListCard(title, items, allIngredients = []) {
       body: {
         type: 'box', layout: 'vertical',
         contents: [
-          { type: 'text', text: `🛒 Missing Ingredients (${/^none/i.test(items[0] || '') ? 0 : items.length})`, weight: 'bold', size: 'lg', color: '#10B981' },
+          { type: 'text', text: `${t(session, 'missingHeader')} (${hasRealMissing ? items.length : 0})`, weight: 'bold', size: 'md', color: '#10B981', wrap: true },
           { type: 'text', text: title, size: 'xs', color: '#6B7280', margin: 'xs', wrap: true },
           { type: 'separator', margin: 'md' },
           ...missingRows,
@@ -1577,7 +1717,7 @@ function buildShoppingListCard(title, items, allIngredients = []) {
   };
 }
 
-// --- Gemini AI Generators (Multi-Language Supported) ---
+// --- Gemini AI Generators (Complete Ingredients Audit + 5–6 Detailed Cooking Steps + Natural TH/MY/EN) ---
 async function generateRecipesForSession(session, filterStyle = null) {
   const styleInstructions = {
     budget_60: 'Focus strictly on STUDENT BUDGET-FRIENDLY meals costing UNDER 60 THB per serving.',
@@ -1588,41 +1728,82 @@ async function generateRecipesForSession(session, filterStyle = null) {
   const extraRule = filterStyle && styleInstructions[filterStyle] ? styleInstructions[filterStyle] : '';
 
   const langInstructions = {
-    th: 'Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in natural THAI (ภาษาไทย).',
-    en: 'Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in ENGLISH.',
-    my: 'Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in natural BURMESE (မြန်မာဘာသာ).',
-    auto: 'Detect the language of the user\'s input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English) and write ALL output fields in THAT EXACT SAME LANGUAGE.',
+    th: `LANGUAGE RULE (CRITICAL — THAI):
+- Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in natural, fluent culinary THAI (ภาษาไทยธรรมชาติที่ใช้ในตำราอาหารไทย เช่น ช้อนโต๊ะ, ช้อนชา, กรัม, ขีด, ซีอิ๊วขาว, ซอสหอยนางรม, น้ำปลา, น้ำตาลทราย, พริกไทยป่น, ข้าวสวยร้อนๆ).`,
+    en: `LANGUAGE RULE (CRITICAL — ENGLISH):
+- Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in clear, natural ENGLISH.`,
+    my: `LANGUAGE RULE (CRITICAL — BURMESE):
+- Write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") strictly in natural, fluent everyday Myanmar culinary language (မြန်မာဘာသာစကား အမှန်အကန် သဘာဝကျကျ ရေးပါ — ဥပမာ စားပွဲတင်ဇွန်း၊ လက်ဖက်ရည်ဇွန်း၊ ဂရမ်၊ ပဲငံပြာရည်အကြည်၊ ခရုဆီ၊ ငံပြာရည်၊ ဆား၊ သကြား၊ ဟင်းချက်ဆီ၊ ကြက်သွန်ဖြူ၊ ကြက်သွန်နီ၊ ထမင်းပူပူ). Avoid awkward literal translations.`,
+    auto: `LANGUAGE RULE (CRITICAL — AUTO-DETECT):
+- Detect the language of the user's input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English) and write ALL output fields ("title", "time", "usedIngredients", "allIngredients", "missingItems", and "steps") in THAT EXACT SAME LANGUAGE with natural culinary terms.`,
   };
   const chosenLangRule = langInstructions[session.lang] || langInstructions.auto;
 
   const schemaPrompt = `${extraRule}
 ${chosenLangRule}
-- ALWAYS keep "mainIngredient" in lowercase ENGLISH.
-- Compare EVERY ingredient required against what the user provided, and list missing items in "missingItems".
+- ALWAYS keep "mainIngredient" in lowercase ENGLISH (e.g., "chicken", "pork", "egg", "beef", "tofu", "shrimp", "noodle").
 
-Return ONLY valid JSON (no markdown) matching this exact format:
+CRITICAL INGREDIENT & MISSING-ITEM AUDIT RULES (DO NOT SKIP ANY ITEM):
+1. "allIngredients": Must list EVERY SINGLE ingredient required to actually cook the dish so it tastes complete and authentic (6 to 10 items with exact measurements, e.g., main protein, vegetables, aromatics like garlic/shallots/chili/ginger, cooking oil, sauces like soy sauce/fish sauce/oyster sauce, sugar/salt/pepper, water/stock, and rice/noodles if served with it).
+2. "usedIngredients": List ONLY the ingredients from the user's provided list/photo that are used in this recipe (with measurements).
+3. "missingItems": Strictly compare "allIngredients" against ONLY what the user explicitly provided. Put EVERY SINGLE required ingredient that the user did NOT explicitly mention (including cooking oil, sauces, seasonings, sugar, salt, pepper, garlic, onion, chili, herbs, stock, and rice/noodles) inside "missingItems" with exact quantities! Never return only 1 missing item when the recipe also needs oil, sauces, seasonings, or aromatics that the user did not list.
+
+CRITICAL STEP-BY-STEP COOKING INSTRUCTIONS RULE:
+- "steps": Must contain 5 to 6 complete, detailed, foolproof cooking steps so even a beginner can cook the dish from start to finish!
+- Step 1: Exact prep & cutting instructions (how to slice meat, mince aromatics, wash/cut veggies, or whisk sauces) with quantities.
+- Step 2: Heating the pan/wok (heat level + amount of oil) and sautéing aromatics with exact time and visual/aroma cue (e.g., "for 30–45 seconds until golden and fragrant").
+- Step 3: Cooking the main protein or base ingredient with exact minutes and doneness cue.
+- Step 4: Adding vegetables, liquids/stock, and exact measurements of every sauce/seasoning.
+- Step 5: Simmering/tossing/reducing the sauce, taste adjustment, and final garnish/plating instructions.
+
+Return ONLY valid JSON (no markdown) matching this exact structure:
 {
   "recipes": [
     {
       "title": "Dish Name",
       "emoji": "🍗",
       "mainIngredient": "chicken",
-      "usedIngredients": ["200g chicken breast"],
+      "usedIngredients": ["200g chicken breast, sliced", "4 cloves garlic, minced"],
       "calories": 520,
       "protein": 44,
       "costThb": 48,
       "time": "15m",
-      "allIngredients": ["200g chicken breast", "2 cloves garlic"],
-      "missingItems": ["1 tbsp soy sauce"],
-      "steps": ["Step 1 instruction", "Step 2 instruction"]
+      "allIngredients": [
+        "200g chicken breast, thinly sliced",
+        "4 cloves garlic, finely minced",
+        "1 tbsp cooking oil",
+        "1 tbsp oyster sauce",
+        "1 tbsp light soy sauce",
+        "1 tsp fish sauce",
+        "1/2 tsp sugar",
+        "1/4 tsp ground white pepper",
+        "2 tbsp water",
+        "1 cup steamed jasmine rice"
+      ],
+      "missingItems": [
+        "1 tbsp cooking oil",
+        "1 tbsp oyster sauce",
+        "1 tbsp light soy sauce",
+        "1 tsp fish sauce",
+        "1/2 tsp sugar",
+        "1/4 tsp ground white pepper",
+        "1 cup steamed jasmine rice"
+      ],
+      "steps": [
+        "Step 1 (Prep): Slice 200g chicken breast into thin bite-sized pieces and finely mince 4 cloves of garlic.",
+        "Step 2 (Aromatics): Heat 1 tbsp cooking oil in a pan over medium-high heat. Add the minced garlic and stir-fry for 30 seconds until golden and fragrant.",
+        "Step 3 (Protein): Add the sliced chicken breast and stir-fry for 3–4 minutes until the meat turns white and is 80% cooked through.",
+        "Step 4 (Seasoning): Add 1 tbsp oyster sauce, 1 tbsp light soy sauce, 1 tsp fish sauce, 1/2 tsp sugar, and 2 tbsp water. Toss over high heat for 2 minutes until the sauce coats the chicken evenly.",
+        "Step 5 (Serve): Turn off the heat, sprinkle with 1/4 tsp ground white pepper, and serve hot over 1 cup of steamed jasmine rice."
+      ]
     }
   ]
 }
-Suggest 3 distinct, practical recipes.`;
+Suggest 3 distinct, practical, delicious recipes.`;
 
   const geminiContents = session.lastPromptType === 'image' && session.lastImageBase64
-    ? [{ inlineData: { mimeType: 'image/jpeg', data: session.lastImageBase64 } }, `You are FridgeFriend, an AI chef. Identify ingredients in this photo and suggest 3 recipes. ${schemaPrompt}`]
-    : `You are FridgeFriend, an AI chef. User ingredients: "${session.lastText}". ${schemaPrompt}`;
+    ? [{ inlineData: { mimeType: 'image/jpeg', data: session.lastImageBase64 } }, `You are FridgeFriend, a master chef. Identify ONLY the ingredients visible in this photo and suggest 3 complete recipes. ${schemaPrompt}`]
+    : `You are FridgeFriend, a master chef. The user ONLY has these exact ingredients: "${session.lastText}". Assume they do NOT have any other ingredients unless listed in "missingItems". ${schemaPrompt}`;
 
   const response = await generateWithFallback(geminiContents, { responseMimeType: 'application/json' });
   const parsed = JSON.parse(response.text.replace(/```json|```/g, '').trim());
@@ -1632,13 +1813,14 @@ Suggest 3 distinct, practical recipes.`;
 
 async function generateMealPlanForSession(session) {
   const langInstructions = {
-    th: 'Write meal plan in natural THAI (ภาษาไทย).',
-    en: 'Write meal plan in ENGLISH.',
-    my: 'Write meal plan in natural BURMESE (မြန်မာဘာသာ).',
-    auto: 'Match user language or default to English.',
+    th: 'Write the entire meal plan in natural THAI (ภาษาไทย).',
+    en: 'Write the entire meal plan in ENGLISH.',
+    my: 'Write the entire meal plan in natural, fluent BURMESE (မြန်မာဘာသာ).',
+    auto: 'Match the user\'s input language (Burmese, Thai, or English) or default to English.',
   };
 
   const planPrompt = `Create a smart 3-Day Zero-Waste Meal Plan (6 meals total). ${langInstructions[session.lang] || ''}
+Include ALL required groceries, sauces, seasonings, and staples inside "ingredientsNeeded" and "consolidatedShoppingList" with exact quantities.
 Return ONLY valid JSON (no markdown) matching this exact format:
 {
   "days": [
@@ -1648,11 +1830,11 @@ Return ONLY valid JSON (no markdown) matching this exact format:
       "lunchMacros": "480 kcal | 40g P",
       "dinner": "Dish Name",
       "dinnerMacros": "520 kcal | 42g P",
-      "ingredientsNeeded": ["300g chicken breast", "garlic"],
+      "ingredientsNeeded": ["300g chicken breast", "4 cloves garlic", "2 tbsp soy sauce", "1 tbsp oyster sauce", "2 cups jasmine rice"],
       "wasteTip": "Tip on leftovers"
     }
   ],
-  "consolidatedShoppingList": ["600g chicken breast", "6 eggs"]
+  "consolidatedShoppingList": ["600g chicken breast", "6 eggs", "1 head garlic", "1 bottle light soy sauce", "1 bottle oyster sauce", "1 bottle cooking oil", "1kg jasmine rice"]
 }`;
 
   const geminiContents = session.lastPromptType === 'image' && session.lastImageBase64
@@ -1683,7 +1865,7 @@ async function handleEvent(event) {
         replyToken: event.replyToken,
         messages: [{
           type: 'text',
-          text: '🌐 Choose your preferred language / ရွေးချယ်ပါ / เลือกภาษา:',
+          text: '🌐 Choose your preferred language / ဘာသာစကား ရွေးချယ်ပါ / เลือกภาษา:',
           quickReply: {
             items: [
               { type: 'action', action: { type: 'postback', label: '🇲🇲 မြန်မာ (Burmese)', data: 'action=set_lang&lang=my', displayText: '🇲🇲 မြန်မာဘာသာသို့ ပြောင်းမည်' } },
@@ -1701,9 +1883,9 @@ async function handleEvent(event) {
       session.lang = lang;
       saveDB();
       const confirmMap = {
-        th: '✅ ตั้งค่าเป็นภาษาไทยเรียบร้อย! เมนูและปุ่มทั้งหมดเปลี่ยนเป็นไทยแล้ว 🍳',
+        th: '✅ ตั้งค่าเป็นภาษาไทยเรียบร้อย! เมนูและปุ่มทั้งหมดเปลี่ยนเป็นภาษาไทยแล้ว 🍳',
         en: '✅ Language set to English! All buttons & menus are now in English 🍳',
-        my: '✅ မြန်မာဘာသာသို့ ပြောင်းလဲပြီးပါပြီ! ခလုတ်များနှင့် မီနူးများအားလုံး မြန်မာလိုဖြစ်သွားပါပြီ 🍳',
+        my: '✅ မြန်မာဘာသာသို့ ပြောင်းလဲပြီးပါပြီ! ခလုတ်များနှင့် ဟင်းချက်နည်းအားလုံး မြန်မာလို ပြသပေးပါမည် 🍳',
         auto: '✅ Auto-detect enabled! 🌐',
       };
       if (session.lastPromptType) {
@@ -1775,7 +1957,7 @@ async function handleEvent(event) {
           text: t(session, mode === 'add' ? 'addPrompt' : 'deletePrompt'),
           quickReply: {
             items: [
-              { type: 'action', action: { type: 'postback', label: t(session, 'cancelBtn').slice(0, 20), data: `action=pantry_cancel&batch=${batchId}`, displayText: '↩️ Back to list' } },
+              { type: 'action', action: { type: 'postback', label: t(session, 'cancelBtn').slice(0, 20), data: `action=pantry_cancel&batch=${batchId}`, displayText: t(session, 'cancelBtn') } },
             ],
           },
         }],
@@ -1817,7 +1999,7 @@ async function handleEvent(event) {
     if (action === 'cook') {
       const recipe = recipeStore.get(params.get('id'));
       const stepIdx = parseInt(params.get('step') || '0', 10);
-      if (!recipe) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: 'Recipe expired—send your ingredients again! 🥦' }] });
+      if (!recipe) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: t(session, 'expired') }] });
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildSingleStepCard(recipe, stepIdx, session)] });
     }
 
@@ -1837,14 +2019,20 @@ async function handleEvent(event) {
       if (!recipe) return null;
       db.analytics.affiliateClicks = (db.analytics.affiliateClicks || 0) + 1;
       saveDB();
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildShoppingListCard(`For: ${recipe.title}`, recipe.missingItems, recipe.allIngredients)] });
+      return messagingClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [buildShoppingListCard(recipe.title, recipe.missingItems, recipe.allIngredients, session)],
+      });
     }
 
     if (action === 'plan_list') {
       const items = mealPlanStore.get(params.get('id')) || ['Chicken breast, eggs, garlic, rice'];
       db.analytics.affiliateClicks = (db.analytics.affiliateClicks || 0) + 1;
       saveDB();
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildShoppingListCard('3-Day Meal Prep Ingredients', items)] });
+      return messagingClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [buildShoppingListCard('3-Day Meal Prep Ingredients', items, [], session)],
+      });
     }
 
     if (action === 'save') {
@@ -1885,6 +2073,17 @@ async function handleEvent(event) {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `✅ Updated daily target to ${cal} kcal & ${pro}g protein!` }, buildStatsCard(session)] });
     }
 
+    if (action === 'receipt_cook') {
+      const items = pendingReceiptItems.get(params.get('batch')) || [];
+      if (items.length === 0) return null;
+      session.lastPromptType = 'text';
+      session.lastText = items.join(', ');
+      recordPantryTrends(session.lastText, []);
+      if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
+      const carousel = await generateRecipesForSession(session);
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `🍳 Cooking with your ${items.length} scanned receipt items:` }, carousel] });
+    }
+
     if (action === 'meal_plan') {
       if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
       const planCarousel = await generateMealPlanForSession(session);
@@ -1906,7 +2105,6 @@ async function handleEvent(event) {
     const lower = rawText.toLowerCase();
 
     // --- Pantry list editing: the typed message ADDS to or DELETES from the scanned list ---
-    // (Checked first so ingredient names can never be mistaken for commands.)
     if (session.pantryEditMode && session.pantryBatchId) {
       const mode = session.pantryEditMode;
       const batchId = session.pantryBatchId;
@@ -1926,7 +2124,7 @@ async function handleEvent(event) {
         const res = addIngredientsToList(current, requested);
         updated = res.updated;
         if (res.added.length) summary.push(`➕ ${t(session, 'addedMsg')}: ${res.added.join(', ')}`);
-        if (res.skipped.length) summary.push(`ℹ️ ${res.skipped.join(', ')} (already in list)`);
+        if (res.skipped.length) summary.push(`ℹ️ ${t(session, 'alreadyInListMsg')}: ${res.skipped.join(', ')}`);
       } else {
         const res = removeIngredientsFromList(current, requested);
         updated = res.updated;
@@ -2020,10 +2218,16 @@ async function handleEvent(event) {
     if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
     const base64Image = await getMessageBase64(event.message.id);
 
+    const scanLangHint = session.lang === 'my'
+      ? 'Write the item names in natural Burmese (မြန်မာဘာသာ).'
+      : session.lang === 'th'
+      ? 'Write the item names in natural Thai (ภาษาไทย).'
+      : 'Write the item names in English.';
+
     const classifyRes = await generateWithFallback(
       [
         { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
-        `Analyze this image. Is it a shopping/grocery RECEIPT, or a photo of FOOD/FRIDGE ingredients? Return ONLY valid JSON: { "type": "receipt" or "food", "receiptFoodItems": ["item 1", "item 2"], "fridgeIngredients": ["chicken breast", "garlic", "tomato"] }`,
+        `Analyze this image carefully. Is it a shopping/grocery RECEIPT, or a photo of FOOD/FRIDGE ingredients? List every visible food ingredient accurately. ${scanLangHint} Return ONLY valid JSON: { "type": "receipt" or "food", "receiptFoodItems": ["item 1", "item 2"], "fridgeIngredients": ["chicken breast", "garlic", "tomato"] }`,
       ],
       { responseMimeType: 'application/json' }
     );
@@ -2058,7 +2262,7 @@ async function handleEvent(event) {
 
     const transcribeRes = await generateWithFallback([
       { inlineData: { mimeType: 'audio/m4a', data: base64Audio } },
-      'Extract ONLY the food ingredients spoken in this voice note as a concise comma-separated phrase.',
+      'Extract ONLY the food ingredients spoken in this voice note as a concise comma-separated phrase, keeping the exact language spoken (Burmese, Thai, or English).',
     ]);
 
     const spokenIngredients = transcribeRes.text.trim();
