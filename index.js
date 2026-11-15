@@ -128,63 +128,63 @@ const PARTNER_AD_POOL = [
   {
     tags: ['protein', 'chicken', 'egg', 'beef', 'pork', 'salmon', 'fitness'],
     sponsor: 'Meiji High Protein (7-Eleven)',
-    tagline: '⚡ Boost +28g Protein: Pair with Meiji High Protein Milk',
+    tagline: 'Meiji High Protein Milk (+28g Protein)',
     promoCode: 'FFMEIJI10 (10 THB Off at 7-Eleven)',
     url: 'https://www.7eleven.co.th/',
   },
   {
     tags: ['chicken', 'meat', 'budget', 'pork', 'fresh'],
     sponsor: 'CP FreshMart / Lotus’s Go Fresh',
-    tagline: '🏷️ Zero-Waste Deal: 25% Off Fresh Chicken Breast Packs',
+    tagline: 'CP Fresh Chicken Packs — 25% Off',
     promoCode: 'FFCP25 (Show Barcode at Checkout)',
     url: 'https://www.lotuss.com/th',
   },
   {
     tags: ['thai', 'basil', 'garlic', 'soy', 'stir', 'oyster'],
     sponsor: 'Healthy Boy Brand (เด็กสมบูรณ์)',
-    tagline: '🌟 Chef Pick: Healthy Boy Oyster & Soy Sauce Combo',
+    tagline: 'Healthy Boy Oyster & Soy Sauce Combo',
     promoCode: 'FFTHAI15 (15% Off on Shopee Mall)',
     url: 'https://shopee.co.th/search?keyword=healthy%20boy%20oyster%20sauce',
   },
   {
     tags: ['rice', 'noodle', 'quick', 'fry', 'spicy', 'chili'],
     sponsor: 'Maggi Thailand (แม็กกี้)',
-    tagline: '🔥 1-Drop Umami: Maggi Cooking Sauce Value Pack',
+    tagline: 'Maggi Cooking Sauce Value Pack (20฿ Off)',
     promoCode: 'FFMAGGI20 (20 THB Off at Tops)',
     url: 'https://www.tops.co.th/en/search/maggi',
   },
   {
     tags: ['egg', 'omelette', 'tomato', 'fried', 'kid', 'quick'],
     sponsor: 'Roza Lycopene (โรซ่า)',
-    tagline: '🍅 Zero-Sugar Tomato & Chili Sauce for Quick Meals',
+    tagline: 'Roza Zero-Sugar Tomato & Chili Sauce',
     promoCode: 'FFROZA10 (Buy 1 Get 1 Mini Pack)',
     url: 'https://www.tops.co.th/en/search/roza',
   },
   {
     tags: ['salad', 'veggie', 'tofu', 'healthy', 'diet', 'low'],
     sponsor: 'Kewpie Thailand (คิวพี)',
-    tagline: '🥗 Roasted Sesame Dressing — Light & High Flavor',
+    tagline: 'Kewpie Roasted Sesame Dressing (15% Off)',
     promoCode: 'FFKEWPIE15 (15% Off on Lazada)',
     url: 'https://www.lazada.co.th/catalog/?q=kewpie+sesame',
   },
   {
     tags: ['pasta', 'milk', 'cheese', 'butter', 'cream'],
     sponsor: 'Tops Online Express',
-    tagline: '🚚 Missing Dairy or Pasta? 1-Hour Delivery to Dorm',
+    tagline: 'Tops Express 1-Hr Dorm Delivery (50฿ Off)',
     promoCode: 'FFTOPS50 (50 THB Off First Order)',
     url: 'https://www.tops.co.th/en/',
   },
   {
     tags: ['all', 'student', 'budget', 'grocery'],
     sponsor: 'GrabMart Student Saver',
-    tagline: '🛵 Free Delivery on Missing Ingredients Under 150 THB',
+    tagline: 'GrabMart Free Delivery Near Campus',
     promoCode: 'FFGRABFREE (Free Delivery Near Campus)',
     url: 'https://food.grab.com/th/en/',
   },
   {
     tags: ['bulk', 'meal', 'prep', 'plan', '3-day'],
     sponsor: 'Makro PRO (แม็คโคร โปร)',
-    tagline: '📦 Meal-Prep Saver: Bulk Eggs & Chicken Packs',
+    tagline: 'Makro PRO Bulk Eggs & Chicken (40฿ Off)',
     promoCode: 'FFMAKRO40 (40 THB Off App Order)',
     url: 'https://www.makro.pro/',
   },
@@ -702,7 +702,7 @@ function buildFlashDealCard() {
   };
 }
 
-// --- Zero-Image Culinary Dashboard Recipe Carousel (100% Instant, Zero Mismatches) ---
+// --- Compact Smart Kitchen HUD Recipe Carousel (Fixed 104px Header + Side-by-Side Pantry Split) ---
 function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = '') {
   const safeRecipes = Array.isArray(recipes) && recipes.length > 0
     ? recipes.slice(0, 5)
@@ -710,7 +710,9 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
         title: 'Thai Garlic Chicken Stir-Fry',
         emoji: '🍳',
         cuisineTag: 'QUICK STIR-FRY',
-        usedIngredients: ['200g chicken breast', '2 cloves garlic'],
+        difficulty: 'Easy',
+        chefTip: 'Mince garlic finely and sear on high heat 30s first.',
+        usedIngredients: ['Chicken breast', 'Garlic'],
         calories: 460,
         protein: 38,
         costThb: 45,
@@ -721,9 +723,9 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
       }];
 
   const headerThemes = [
-    { bg: '#065F46', badge: '#A7F3D0' }, // Emerald
-    { bg: '#1E3A8A', badge: '#BFDBFE' }, // Deep Navy
-    { bg: '#92400E', badge: '#FDE68A' }, // Warm Amber
+    { bg: '#065F46', badge: '#A7F3D0', barFill: '#34D399' }, // Emerald
+    { bg: '#1E3A8A', badge: '#BFDBFE', barFill: '#60A5FA' }, // Deep Navy
+    { bg: '#7C2D12', badge: '#FED7AA', barFill: '#FB923C' }, // Warm Terracotta
   ];
 
   const usedSponsors = new Set();
@@ -732,17 +734,19 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
   for (let idx = 0; idx < safeRecipes.length; idx++) {
     const recipe = safeRecipes[idx];
     const recipeId = `${Date.now()}_${idx}_${Math.floor(Math.random() * 1000)}`;
-    const title = (recipe.title || 'Quick Fridge Dish').slice(0, 60);
+    const title = (recipe.title || 'Quick Fridge Dish').slice(0, 52);
     const time = recipe.time || '15m total';
+    const difficulty = recipe.difficulty || 'Easy';
+    const chefTip = (recipe.chefTip || 'Prep aromatics before heating the pan.').slice(0, 68);
     const calories = Number(recipe.calories) || 450;
     const protein = Number(recipe.protein) || 32;
     const costThb = Number(recipe.costThb) || 45;
     const macros = `${calories} kcal | ${protein}g P | ~${costThb} THB`;
     const allIngredients = Array.isArray(recipe.allIngredients) ? recipe.allIngredients : [];
-    const missing = Array.isArray(recipe.missingItems) && recipe.missingItems.length > 0 ? recipe.missingItems : ['None — ready to cook!'];
+    const missing = Array.isArray(recipe.missingItems) && recipe.missingItems.length > 0 ? recipe.missingItems : ['None — ready!'];
     const usedList = Array.isArray(recipe.usedIngredients) && recipe.usedIngredients.length > 0
       ? recipe.usedIngredients.join(', ')
-      : allIngredients.slice(0, 2).join(', ') || 'Your fridge items';
+      : allIngredients.slice(0, 3).join(', ') || 'Your fridge items';
     const steps = Array.isArray(recipe.steps) && recipe.steps.length > 0 ? recipe.steps : ['Prep your ingredients.', 'Cook over medium heat until done.', 'Season to taste and serve!'];
 
     recordPantryTrends('', missing);
@@ -751,11 +755,11 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
     const normalizedRecipe = { ...recipe, id: recipeId, title, time, calories, protein, costThb, macros, allIngredients, missingItems: missing, steps, sponsor };
     recipeStore.set(recipeId, normalizedRecipe);
 
-    const hasMissing = missing[0] !== 'None — ready to cook!' && !/^none/i.test(missing[0]);
+    const hasMissing = !/^none/i.test(missing[0]);
     const totalCount = Math.max(allIngredients.length, (hasMissing ? missing.length : 0) + 2);
     const matchPct = hasMissing ? Math.max(40, Math.round(((totalCount - missing.length) / totalCount) * 100)) : 100;
     const theme = headerThemes[idx % headerThemes.length];
-    const tag = (recipe.cuisineTag || `CHEF PICK #${idx + 1}`).toUpperCase().slice(0, 28);
+    const tag = (recipe.cuisineTag || `CHEF PICK #${idx + 1}`).toUpperCase().slice(0, 22);
 
     bubbles.push({
       type: 'bubble',
@@ -764,95 +768,171 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
         type: 'box',
         layout: 'vertical',
         backgroundColor: theme.bg,
-        paddingAll: 'lg',
-        spacing: 'xs',
+        height: '104px',
+        paddingAll: 'md',
+        justifyContent: 'space-between',
         contents: [
           {
             type: 'box',
             layout: 'horizontal',
             contents: [
-              { type: 'text', text: `${recipe.emoji || '🍳'} ${tag}`, color: theme.badge, size: 'xs', weight: 'bold', flex: 3 },
-              { type: 'text', text: `${matchPct}% MATCH`, color: '#FFFFFF', size: 'xs', weight: 'bold', align: 'end', flex: 2 },
+              { type: 'text', text: `${recipe.emoji || '🍳'} ${tag}`, color: theme.badge, size: 'xxs', weight: 'bold', flex: 3 },
+              { type: 'text', text: `${matchPct}% MATCH`, color: '#FFFFFF', size: 'xxs', weight: 'bold', align: 'end', flex: 2 },
             ],
           },
-          { type: 'text', text: title, color: '#FFFFFF', size: 'lg', weight: 'bold', wrap: true },
-          { type: 'text', text: `⏱️ ${time}`, color: theme.badge, size: 'xs' },
+          {
+            type: 'text',
+            text: title,
+            color: '#FFFFFF',
+            size: 'md',
+            weight: 'bold',
+            wrap: true,
+            maxLines: 2,
+          },
+          {
+            type: 'box',
+            layout: 'horizontal',
+            alignItems: 'center',
+            spacing: 'sm',
+            contents: [
+              {
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: '#FFFFFF33',
+                height: '4px',
+                cornerRadius: 'md',
+                flex: 2,
+                contents: [
+                  {
+                    type: 'box',
+                    layout: 'vertical',
+                    backgroundColor: theme.barFill,
+                    height: '4px',
+                    width: `${matchPct}%`,
+                    cornerRadius: 'md',
+                    contents: [],
+                  },
+                ],
+              },
+              { type: 'text', text: `⏱️ ${time} • ${difficulty}`, color: theme.badge, size: 'xxs', align: 'end', flex: 3 },
+            ],
+          },
         ],
       },
       body: {
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
+        paddingAll: 'md',
         contents: [
-          // 3-Column Visual Macro & Cost Strip
+          // Compact 3-Column Macro & Cost Strip
           {
             type: 'box',
             layout: 'horizontal',
-            backgroundColor: '#ECFDF5',
-            cornerRadius: 'md',
-            paddingAll: 'sm',
-            contents: [
-              {
-                type: 'box',
-                layout: 'vertical',
-                flex: 1,
-                contents: [
-                  { type: 'text', text: 'CALORIES', size: 'xxs', color: '#065F46', align: 'center', weight: 'bold' },
-                  { type: 'text', text: `${calories}`, size: 'sm', color: '#047857', align: 'center', weight: 'bold' },
-                ],
-              },
-              {
-                type: 'box',
-                layout: 'vertical',
-                flex: 1,
-                contents: [
-                  { type: 'text', text: 'PROTEIN', size: 'xxs', color: '#065F46', align: 'center', weight: 'bold' },
-                  { type: 'text', text: `${protein}g`, size: 'sm', color: '#047857', align: 'center', weight: 'bold' },
-                ],
-              },
-              {
-                type: 'box',
-                layout: 'vertical',
-                flex: 1,
-                contents: [
-                  { type: 'text', text: 'EST. COST', size: 'xxs', color: '#065F46', align: 'center', weight: 'bold' },
-                  { type: 'text', text: `~${costThb}฿`, size: 'sm', color: '#047857', align: 'center', weight: 'bold' },
-                ],
-              },
-            ],
-          },
-          // Uses From Fridge
-          {
-            type: 'box',
-            layout: 'baseline',
-            spacing: 'sm',
-            contents: [
-              { type: 'text', text: '🥬 Uses:', size: 'xs', color: '#059669', weight: 'bold', flex: 2 },
-              { type: 'text', text: usedList, size: 'xs', color: '#1F2937', flex: 5, wrap: true },
-            ],
-          },
-          // Missing Items
-          {
-            type: 'box',
-            layout: 'baseline',
-            spacing: 'sm',
-            contents: [
-              { type: 'text', text: '🛒 Missing:', size: 'xs', color: '#888888', flex: 2 },
-              { type: 'text', text: hasMissing ? `${missing.length} items (${missing.join(', ')})` : missing[0], size: 'xs', color: hasMissing ? '#DC2626' : '#059669', flex: 5, wrap: true },
-            ],
-          },
-          // Native B2B Sponsor Banner
-          {
-            type: 'box',
-            layout: 'vertical',
-            backgroundColor: '#FFFBEB',
+            backgroundColor: '#F8FAFC',
+            borderColor: '#E2E8F0',
+            borderWidth: '1px',
             cornerRadius: 'md',
             paddingAll: 'xs',
-            margin: 'xs',
+            contents: [
+              {
+                type: 'box',
+                layout: 'vertical',
+                flex: 1,
+                contents: [
+                  { type: 'text', text: 'CALORIES', size: 'xxs', color: '#64748B', align: 'center', weight: 'bold' },
+                  { type: 'text', text: `${calories}`, size: 'sm', color: '#0F172A', align: 'center', weight: 'bold' },
+                ],
+              },
+              { type: 'separator', color: '#E2E8F0' },
+              {
+                type: 'box',
+                layout: 'vertical',
+                flex: 1,
+                contents: [
+                  { type: 'text', text: 'PROTEIN', size: 'xxs', color: '#64748B', align: 'center', weight: 'bold' },
+                  { type: 'text', text: `${protein}g`, size: 'sm', color: '#059669', align: 'center', weight: 'bold' },
+                ],
+              },
+              { type: 'separator', color: '#E2E8F0' },
+              {
+                type: 'box',
+                layout: 'vertical',
+                flex: 1,
+                contents: [
+                  { type: 'text', text: 'EST. COST', size: 'xxs', color: '#64748B', align: 'center', weight: 'bold' },
+                  { type: 'text', text: `~${costThb}฿`, size: 'sm', color: '#0F172A', align: 'center', weight: 'bold' },
+                ],
+              },
+            ],
+          },
+          // Side-by-Side 2-Column Split: Have vs. Need
+          {
+            type: 'box',
+            layout: 'horizontal',
+            spacing: 'xs',
+            contents: [
+              {
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: '#F0FDF4',
+                cornerRadius: 'md',
+                paddingAll: 'sm',
+                flex: 1,
+                spacing: 'xs',
+                contents: [
+                  { type: 'text', text: '🥬 IN FRIDGE', size: 'xxs', weight: 'bold', color: '#15803D' },
+                  { type: 'text', text: usedList, size: 'xxs', color: '#166534', wrap: true, maxLines: 3 },
+                ],
+              },
+              {
+                type: 'box',
+                layout: 'vertical',
+                backgroundColor: hasMissing ? '#FEF2F2' : '#ECFDF5',
+                cornerRadius: 'md',
+                paddingAll: 'sm',
+                flex: 1,
+                spacing: 'xs',
+                contents: [
+                  {
+                    type: 'text',
+                    text: hasMissing ? `🛒 TO BUY (${missing.length})` : '✅ READY (0)',
+                    size: 'xxs',
+                    weight: 'bold',
+                    color: hasMissing ? '#B91C1C' : '#047857',
+                  },
+                  {
+                    type: 'text',
+                    text: hasMissing ? missing.join(', ') : 'All items ready!',
+                    size: 'xxs',
+                    color: hasMissing ? '#991B1B' : '#065F46',
+                    wrap: true,
+                    maxLines: 3,
+                  },
+                ],
+              },
+            ],
+          },
+          // 1-Line Chef Pro Tip
+          {
+            type: 'text',
+            text: `💡 ${chefTip}`,
+            size: 'xxs',
+            color: '#475569',
+            maxLines: 1,
+          },
+          // 1-Line Native B2B Sponsor Strip
+          {
+            type: 'box',
+            layout: 'horizontal',
+            backgroundColor: '#FFFBEB',
+            borderColor: '#FDE68A',
+            borderWidth: '1px',
+            cornerRadius: 'md',
+            paddingAll: 'xs',
             action: { type: 'postback', label: 'Claim Partner Promo', data: `action=sponsor_click&id=${recipeId}`, displayText: `🏷️ ${sponsor.sponsor} Deal` },
             contents: [
-              { type: 'text', text: `AD • ${sponsor.sponsor}`, size: 'xxs', weight: 'bold', color: '#B45309' },
-              { type: 'text', text: sponsor.tagline, size: 'xs', color: '#78350F', wrap: true },
+              { type: 'text', text: `🏷️ AD • ${sponsor.tagline}`, size: 'xxs', color: '#92400E', weight: 'bold', maxLines: 1 },
             ],
           },
         ],
@@ -861,6 +941,7 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
         type: 'box',
         layout: 'vertical',
         spacing: 'xs',
+        paddingTop: 'none',
         contents: [
           { type: 'button', style: 'primary', color: '#10B981', height: 'sm', action: { type: 'postback', label: '👨‍🍳 Start Cook Mode', data: `action=cook&id=${recipeId}&step=0`, displayText: `Start cooking ${title}`.slice(0, 300) } },
           {
@@ -1147,7 +1228,7 @@ async function generateRecipesForSession(session, filterStyle = null) {
   const schemaPrompt = `${extraRule}
 LANGUAGE RULE (CRITICAL):
 - Detect the language of the user's input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English).
-- Write "title", "cuisineTag", "time", "usedIngredients", "allIngredients", "missingItems", and "steps" in THAT EXACT SAME LANGUAGE (e.g., if the user writes or speaks in Burmese, write natural Burmese; if in Thai, write natural Thai; if in English or an image without text, write in English).
+- Write "title", "cuisineTag", "difficulty", "chefTip", "time", "usedIngredients", "allIngredients", "missingItems", and "steps" in THAT EXACT SAME LANGUAGE (e.g., if the user writes or speaks in Burmese, write natural Burmese; if in Thai, write natural Thai; if in English or an image without text, write in English).
 - ALWAYS keep "mainIngredient" in lowercase ENGLISH.
 
 IMPORTANT INGREDIENT RULE:
@@ -1163,6 +1244,8 @@ Return ONLY valid JSON (no markdown) matching this exact format:
       "title": "Dish Name in user's language",
       "emoji": "🍗",
       "cuisineTag": "2-word style label in user's language (e.g. THAI STIR-FRY, HEARTY STEW, QUICK BOWL)",
+      "difficulty": "Easy or Medium (in user's language)",
+      "chefTip": "1 concise pro cooking tip under 65 chars in user's language",
       "mainIngredient": "single primary ingredient in lowercase ENGLISH (e.g., chicken, egg, pork, shrimp, beef, salmon, tofu, pasta)",
       "usedIngredients": ["200g chicken breast", "2 cloves garlic"],
       "calories": 520,
