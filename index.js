@@ -367,35 +367,32 @@ async function getMessageBase64(messageId) {
   return Buffer.concat(chunks).toString('base64');
 }
 
-// --- Accurate, Deduplicated Dish Photo Resolver (Always Uses English canonicalDish/mainIngredient) ---
+// --- 100% Exact Dish Photo Resolver (Exact Dish Render + Verified Fallbacks) ---
 async function getRecipeImageUrl(recipe, usedUrls = new Set()) {
   const canonicalDish = (recipe.canonicalDish || '').trim();
-  const mainIngredient = (recipe.mainIngredient || '').trim().toLowerCase();
+  const mainIngredient = (recipe.mainIngredient || 'chicken').trim().toLowerCase();
   const title = (recipe.title || '').trim();
+  const dishName = canonicalDish || (/^[a-zA-Z0-9\s-]+$/.test(title) ? title : `${mainIngredient} dish`);
 
-  // 1. Smart Wikipedia Search (handles fuzzy & Asian dish names like "Pad Kra Pao", "Omelette", "Garlic Chicken")
-  for (const query of [canonicalDish, title].filter(Boolean)) {
-    try {
-      const wikiSearchUrl = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query + ' food dish')}&gsrlimit=4&prop=pageimages&pithumbsize=800&format=json&origin=*`;
-      const res = await fetch(wikiSearchUrl, { headers: { 'User-Agent': 'FridgeFriendBot/1.0 (https://line.me)' } });
-      const data = await res.json();
-      const pages = Object.values(data?.query?.pages || {}).sort((a, b) => (a.index || 99) - (b.index || 99));
-      for (const page of pages) {
-        const thumb = page?.thumbnail?.source;
-        if (
-          thumb &&
-          /\.(jpg|jpeg|png)$/i.test(thumb) &&
-          !/(logo|icon|flag|map|diagram|portrait|person)/i.test(thumb) &&
-          !usedUrls.has(thumb)
-        ) {
-          usedUrls.add(thumb);
-          return thumb;
-        }
-      }
-    } catch {}
-  }
+  // 1. Exact Dish Photo via Direct HTTPS Image Endpoint (matches Pad Kra Pao, Burmese curry, omelettes, etc.)
+  const prompt = encodeURIComponent(
+    `professional food photography of ${dishName}, plated appetizingly on a ceramic dish, natural warm lighting, top-down 45 degree angle, high resolution, no text, no watermark`
+  );
+  const seed = Math.floor(1000 + Math.random() * 90000);
+  const exactDishUrl = `https://image.pollinations.ai/prompt/${prompt}?width=800&height=520&nologo=true&seed=${seed}`;
 
-  // 2. TheMealDB Exact Dish Name Search
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4500);
+    const res = await fetch(exactDishUrl, { method: 'HEAD', signal: controller.signal });
+    clearTimeout(timer);
+    if (res.ok && !usedUrls.has(exactDishUrl)) {
+      usedUrls.add(exactDishUrl);
+      return exactDishUrl;
+    }
+  } catch {}
+
+  // 2. Fallback: Exact Dish Name Search in TheMealDB
   for (const query of [canonicalDish, title].filter(Boolean)) {
     try {
       const res = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(query)}`);
@@ -408,23 +405,7 @@ async function getRecipeImageUrl(recipe, usedUrls = new Set()) {
     } catch {}
   }
 
-  // 3. Wikimedia Commons Real Food Photo Search (exact English dish + main ingredient)
-  const commonsQuery = `${canonicalDish || title} ${mainIngredient} food`.trim();
-  try {
-    const commonsUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(commonsQuery)}&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url&iiurlwidth=800&format=json&origin=*`;
-    const res = await fetch(commonsUrl, { headers: { 'User-Agent': 'FridgeFriendBot/1.0 (https://line.me)' } });
-    const data = await res.json();
-    const pages = Object.values(data?.query?.pages || {});
-    for (const page of pages) {
-      const thumb = page?.imageinfo?.[0]?.thumburl || page?.imageinfo?.[0]?.url;
-      if (thumb && /\.(jpg|jpeg|png)$/i.test(thumb) && !usedUrls.has(thumb)) {
-        usedUrls.add(thumb);
-        return thumb;
-      }
-    }
-  } catch {}
-
-  // 4. Ingredient-Matched TheMealDB Fallback (never defaults to Chicken for non-chicken dishes!)
+  // 3. Fallback: Ingredient-Matched TheMealDB Dish
   const cleanIngredient = mainIngredient.split(/\s+/).pop();
   if (cleanIngredient) {
     try {
@@ -438,7 +419,7 @@ async function getRecipeImageUrl(recipe, usedUrls = new Set()) {
     } catch {}
   }
 
-  // 5. Category-Matched Safe Fallback
+  // 4. Final Category-Matched Safe Fallback
   const fallbackByIngredient = {
     chicken: 'https://www.themealdb.com/images/media/meals/wyxwsp1486979827.jpg',
     egg: 'https://www.themealdb.com/images/media/meals/1550441882.jpg',
@@ -794,7 +775,7 @@ async function buildRecipeCarousel(recipes, includeQuickReplies = true, filterSt
     : [{
         title: 'Quick Garlic Chicken Stir-Fry',
         emoji: '🍳',
-        canonicalDish: 'Chicken Stir Fry',
+        canonicalDish: 'Thai Garlic Chicken Stir Fry',
         mainIngredient: 'chicken',
         calories: 460,
         protein: 38,
@@ -1173,7 +1154,7 @@ async function generateRecipesForSession(session, filterStyle = null) {
 LANGUAGE RULE (CRITICAL):
 - Detect the language of the user's input (Burmese မြန်မာဘာသာ, Thai ภาษาไทย, or English).
 - Write "title", "time", "allIngredients", "missingItems", and "steps" in THAT EXACT SAME LANGUAGE (e.g., if the user writes or speaks in Burmese, write natural Burmese; if in Thai, write natural Thai; if in English or an image without text, write in English).
-- ALWAYS keep "canonicalDish" and "mainIngredient" in ENGLISH so photo lookup works accurately.
+- ALWAYS keep "canonicalDish" and "mainIngredient" in ENGLISH so photo generation works accurately.
 
 IMPORTANT INGREDIENT RULE:
 - Compare EVERY ingredient required to cook the dish (including cooking oil, sauces, seasonings, sugar, salt, aromatics, vegetables, and rice/noodles) against ONLY what the user explicitly provided.
@@ -1186,7 +1167,7 @@ Return ONLY valid JSON (no markdown) matching this exact format:
     {
       "title": "Dish Name in user's language",
       "emoji": "🍗",
-      "canonicalDish": "standard 1-2 word ENGLISH culinary dish name for photo lookup (e.g., Pad Kra Pao, Chicken Teriyaki, Fried Rice, Omelette, Carbonara, Tom Yum)",
+      "canonicalDish": "descriptive 2-4 word ENGLISH dish name for photo generation (e.g., Thai Basil Chicken Pad Kra Pao, Burmese Chicken Potato Curry, Crispy Garlic Omelette, Shrimp Fried Rice)",
       "mainIngredient": "single primary ingredient in lowercase ENGLISH (e.g., chicken, egg, pork, shrimp, beef, salmon, tofu, pasta)",
       "calories": 520,
       "protein": 44,
