@@ -703,7 +703,7 @@ function buildFlashDealCard() {
   };
 }
 
-// --- Multi-Theme Pastel Recipe Carousel (Taller Balanced Proportions + Pixel-Aligned Ads) ---
+// --- Multi-Theme Pastel Recipe Carousel (Full Uncut "Ad • ..." Banner + Pixel-Aligned Slots) ---
 function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = '') {
   const safeRecipes = Array.isArray(recipes) && recipes.length > 0
     ? recipes.slice(0, 5)
@@ -867,11 +867,11 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
           },
         ],
       },
-      // Fixed-Height Body + Locked Slot Heights so the Ad Pill Aligns Horizontally on Every Card!
+      // Fixed-Height Body + Locked Slot Heights (Full Uncut Ad Text + Aligned Across Cards)
       body: {
         type: 'box',
         layout: 'vertical',
-        height: '252px',
+        height: '264px',
         paddingAll: 'xl',
         justifyContent: 'space-between',
         contents: [
@@ -919,11 +919,11 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
               },
             ],
           },
-          // 2. Middle Slot: Fixed-Height Pantry Summary (Prevents 1-line vs 2-line shifts!)
+          // 2. Middle Slot: Fixed-Height Pantry Summary
           {
             type: 'box',
             layout: 'vertical',
-            height: '82px',
+            height: '80px',
             justifyContent: 'center',
             spacing: 'sm',
             contents: [
@@ -948,19 +948,26 @@ function buildRecipeCarousel(recipes, includeQuickReplies = true, filterStyle = 
               },
             ],
           },
-          // 3. Bottom Slot: Partner Ad Pill (Pinned to exact same Y-position across all cards!)
+          // 3. Bottom Slot: Full Uncut "Ad • ..." Banner (Fixed 48px Height, Zero "..." Truncation)
           {
             type: 'box',
-            layout: 'horizontal',
+            layout: 'vertical',
             backgroundColor: '#FFFBEB',
             cornerRadius: 'md',
-            paddingTop: 'sm',
-            paddingBottom: 'sm',
+            height: '48px',
+            justifyContent: 'center',
             paddingStart: 'md',
             paddingEnd: 'md',
             action: { type: 'postback', label: 'Partner Offer', data: `action=sponsor_click&id=${recipeId}`, displayText: `🏷️ ${sponsor.sponsor} Deal` },
             contents: [
-              { type: 'text', text: `✨ ${sponsor.tagline} ↗`, size: 'xs', color: '#B45309', weight: 'bold', maxLines: 1, flex: 1 },
+              {
+                type: 'text',
+                text: `Ad • ${sponsor.tagline}`,
+                size: 'xs',
+                color: '#B45309',
+                weight: 'bold',
+                wrap: true,
+              },
             ],
           },
         ],
