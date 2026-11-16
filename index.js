@@ -1901,7 +1901,7 @@ async function handleEvent(event) {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: confirmMap[lang] }] });
     }
 
-    // --- Pantry Verification: Confirm ---
+    // --- Pantry Verification: Confirm (Sends status text immediately, then pushes recipes) ---
     if (action === 'pantry_confirm') {
       const batchId = params.get('batch');
       const items = pendingPantryItems.get(batchId);
@@ -1925,9 +1925,30 @@ async function handleEvent(event) {
       session.lastImageBase64 = null;
       recordPantryTrends(session.lastText, []);
       saveDB();
-      if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
+
+      const targetUserId = event.source?.userId;
+      if (targetUserId) {
+        // 1. Reply immediately so "Finding delicious recipes..." appears right away
+        await messagingClient.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: 'text', text: t(session, 'confirmedHeader') }],
+        });
+        messagingClient.showLoadingAnimation({ chatId: targetUserId, loadingSeconds: 10 }).catch(() => {});
+
+        // 2. Generate recipes and push the carousel as soon as Gemini finishes
+        const carousel = await generateRecipesForSession(session);
+        return messagingClient.pushMessage({
+          to: targetUserId,
+          messages: [carousel],
+        });
+      }
+
+      // Fallback if userId is unavailable
       const carousel = await generateRecipesForSession(session);
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: t(session, 'confirmedHeader') }, carousel] });
+      return messagingClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{ type: 'text', text: t(session, 'confirmedHeader') }, carousel],
+      });
     }
 
     // --- Pantry Verification: Edit -> ask Add or Delete ---
