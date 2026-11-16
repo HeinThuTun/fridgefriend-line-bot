@@ -21,40 +21,28 @@ const recipeStore = new Map();
 const mealPlanStore = new Map();
 const pendingReceiptItems = new Map();
 const pendingPantryItems = new Map(); // batchId -> array of ingredient strings (editable working list)
-const imageCache = new Map(); // userId -> { base64, ts } (keeps heavy base64 images out of db.json!)
-const aiResponseCache = new Map(); // cacheKey -> { data, ts } (deduplicates identical prompts across 70 testers)
-const activeUsers = new Set(); // userId -> prevents double-tap duplicate generation
 let cachedModels = null;
 
-// Clean up expired cache every 15 minutes (keeps RAM flat for 70+ users)
+// Clean up expired cache every 30 minutes (keeps RAM flat for 70+ users)
 setInterval(() => {
-  const now = Date.now();
-  const cutoff2h = now - 2 * 60 * 60 * 1000;
-  const cutoff15m = now - 15 * 60 * 1000;
-
+  const cutoff = Date.now() - 2 * 60 * 60 * 1000;
   for (const key of recipeStore.keys()) {
     const ts = Number(key.split('_')[0]);
-    if (ts && ts < cutoff2h) recipeStore.delete(key);
+    if (ts && ts < cutoff) recipeStore.delete(key);
   }
   for (const key of mealPlanStore.keys()) {
     const ts = Number(key.split('_')[0]);
-    if (ts && ts < cutoff2h) mealPlanStore.delete(key);
+    if (ts && ts < cutoff) mealPlanStore.delete(key);
   }
   for (const key of pendingReceiptItems.keys()) {
     const ts = Number(key);
-    if (ts && ts < cutoff2h) pendingReceiptItems.delete(key);
+    if (ts && ts < cutoff) pendingReceiptItems.delete(key);
   }
   for (const key of pendingPantryItems.keys()) {
     const ts = Number(key);
-    if (ts && ts < cutoff2h) pendingPantryItems.delete(key);
+    if (ts && ts < cutoff) pendingPantryItems.delete(key);
   }
-  for (const [uid, entry] of imageCache.entries()) {
-    if (!entry || entry.ts < cutoff15m) imageCache.delete(uid);
-  }
-  for (const [k, entry] of aiResponseCache.entries()) {
-    if (!entry || entry.ts < cutoff15m) aiResponseCache.delete(k);
-  }
-}, 15 * 60 * 1000).unref();
+}, 30 * 60 * 1000).unref();
 
 // --- Multi-Language UI Strings Dictionary (Refined EN / TH / MY — No အမယ်) ---
 const UI_STRINGS = {
@@ -89,8 +77,7 @@ const UI_STRINGS = {
     verifySubtitle: 'We detected these items in your photo. Are they correct?',
     confirmBtn: '✅ Correct & Find Recipes',
     editBtn: '✏️ Edit Ingredients',
-    confirmedHeader: '🍳 Here are delicious recipes for your items:',
-    busyMsg: '⏳ Still preparing your recipes — just a moment!',
+    confirmedHeader: '🍳 Finding delicious recipes for your items...',
     // --- Edit flow ---
     detected: 'Detected ingredients',
     editChoiceTitle: '✏️ Edit Ingredients',
@@ -140,8 +127,7 @@ const UI_STRINGS = {
     verifySubtitle: 'ตรวจพบวัตถุดิบตามรายการนี้ ครบถูกต้องไหม?',
     confirmBtn: '✅ ถูกต้อง & ค้นหาเมนู',
     editBtn: '✏️ แก้ไขรายการวัตถุดิบ',
-    confirmedHeader: '🍳 เมนูอร่อยจากวัตถุดิบของคุณพร้อมแล้ว:',
-    busyMsg: '⏳ กำลังจัดเตรียมเมนูให้คุณอยู่ รอสักครู่นะครับ!',
+    confirmedHeader: '🍳 กำลังคิดค้นเมนูอร่อยจากวัตถุดิบของคุณ...',
     detected: 'วัตถุดิบที่พบทั้งหมด',
     editChoiceTitle: '✏️ แก้ไขรายการวัตถุดิบ',
     editChoiceSubtitle: 'ต้องการเพิ่มวัตถุดิบที่ตกหล่น หรือลบรายการที่ไม่ใช่ออก?',
@@ -190,8 +176,7 @@ const UI_STRINGS = {
     verifySubtitle: 'ပုံထဲတွင် ဤပါဝင်ပစ္စည်းများကို တွေ့ရှိရပါသည်။ မှန်ကန်ပါသလား?',
     confirmBtn: '✅ မှန်ကန်သည် • ဟင်းပွဲရှာမည်',
     editBtn: '✏️ ပါဝင်ပစ္စည်း ပြင်ဆင်မည်',
-    confirmedHeader: '🍳 သင့်ပါဝင်ပစ္စည်းများဖြင့် အရသာရှိသော ဟင်းချက်နည်းများ တွေ့ရှိပါပြီ -',
-    busyMsg: '⏳ ဟင်းချက်နည်းများ ပြင်ဆင်နေပါသည် — ခဏစောင့်ပေးပါ!',
+    confirmedHeader: '🍳 သင့်ပါဝင်ပစ္စည်းများဖြင့် အရသာရှိသော ဟင်းချက်နည်းများ ရှာဖွေနေပါပြီ...',
     detected: 'တွေ့ရှိထားသော ပါဝင်ပစ္စည်း',
     editChoiceTitle: '✏️ ပါဝင်ပစ္စည်းစာရင်း ပြင်ဆင်ရန်',
     editChoiceSubtitle: 'ကျန်နေသော ပါဝင်ပစ္စည်းများ ထပ်ထည့်မလား သို့မဟုတ် ဖျက်မလား?',
@@ -241,12 +226,6 @@ function loadDB() {
         missingCounts: {},
         ...parsed.analytics,
       };
-      // Strip any legacy base64 strings from db.users so db.json stays tiny and fast
-      if (parsed.users) {
-        for (const u of Object.values(parsed.users)) {
-          if (u && u.lastImageBase64) u.lastImageBase64 = null;
-        }
-      }
       return parsed;
     }
   } catch (e) {
@@ -288,12 +267,12 @@ function getTodayKey() {
 function getSession(userId) {
   if (!db.users[userId]) {
     db.users[userId] = {
-      id: userId,
       lang: 'auto', // 'auto' | 'en' | 'th' | 'my'
-      pantryEditMode: null, // null | 'add' | 'delete'
+      pantryEditMode: null, // null | 'add' | 'delete'  (what the next typed message does)
       pantryBatchId: null, // which scanned-ingredient list is being edited
       lastPromptType: null,
       lastText: '',
+      lastImageBase64: null,
       saved: [],
       gymPartner: null,
       goals: { calories: 2000, protein: 130, label: 'Balanced (2000 kcal)' },
@@ -302,10 +281,9 @@ function getSession(userId) {
     saveDB();
   }
   const user = db.users[userId];
-  user.id = userId;
   if (!user.lang) user.lang = 'auto';
+  // Migrate from the old single-flag edit mode
   if ('waitingForPantryEdit' in user) delete user.waitingForPantryEdit;
-  if ('lastImageBase64' in user) delete user.lastImageBase64;
   if (user.pantryEditMode === undefined) user.pantryEditMode = null;
   if (user.pantryBatchId === undefined) user.pantryBatchId = null;
   if (!user.goals) user.goals = { calories: 2000, protein: 130, label: 'Balanced (2000 kcal)' };
@@ -356,8 +334,8 @@ function removeIngredientsFromList(list, requested) {
     updated = updated.filter((item) => {
       const n = normIngredient(item);
       if (n === target) return false;
-      if (target.length >= 2 && n.includes(target)) return false;
-      if (n.length >= 3 && target.includes(n)) return false;
+      if (target.length >= 2 && n.includes(target)) return false; // "garlic" removes "garlic cloves"
+      if (n.length >= 3 && target.includes(n)) return false; // "chicken breast fillet" removes "chicken breast"
       return true;
     });
     if (updated.length < before) removed.push(raw);
@@ -658,47 +636,26 @@ async function getAvailableModels() {
   } catch (e) {
     console.warn('⚠️ Could not list models:', e.message);
   }
-  return ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+  return ['gemini-2.5-flash'];
 }
 
-// Ultra-fast sequential fallback with thinkingBudget: 0 + dynamic discovery safety net
-async function generateWithFallback(contents, config = {}) {
-  const primaryModels = ['gemini-2.5-flash-lite', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
-  const discovered = cachedModels || [];
-  const models = [...new Set([...primaryModels, ...discovered])];
+// Single-call sequential fallback (avoids 3x parallel RPM bursts so 70+ concurrent users run smoothly)
+async function generateWithFallback(contents, config) {
+  const models = await getAvailableModels();
   let lastErr;
 
-  for (const model of models) {
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
     try {
-      const modelConfig = { ...config };
-      if (model.includes('2.5')) {
-        modelConfig.thinkingConfig = { thinkingBudget: 0 }; // Disables reasoning delay for 2x faster JSON
-      }
-      const res = await ai.models.generateContent({ model, contents, config: modelConfig });
+      const res = await ai.models.generateContent({ model, contents, config });
       console.log(`✅ Winner: ${model}`);
       return res;
     } catch (err) {
       lastErr = err;
       console.warn(`⚠️ ${model} failed (${err?.status || err?.message}), trying next...`);
-      if (err?.status === 429) {
-        await new Promise((r) => setTimeout(r, 350 + Math.random() * 250));
-      }
+      await new Promise((r) => setTimeout(r, 800 + Math.random() * 400));
     }
   }
-
-  // Last-resort dynamic discovery if all primary models were unavailable
-  const dynamicModels = await getAvailableModels();
-  for (const model of dynamicModels) {
-    if (models.includes(model)) continue;
-    try {
-      const res = await ai.models.generateContent({ model, contents, config });
-      console.log(`✅ Dynamic Winner: ${model}`);
-      return res;
-    } catch (err) {
-      lastErr = err;
-    }
-  }
-
   throw lastErr;
 }
 
@@ -1208,6 +1165,7 @@ function buildRecipeCarousel(recipes, session, includeQuickReplies = true, filte
     recipeStore.set(recipeId, normalizedRecipe);
 
     const topTag = idx === 0 ? t(session, 'bestMatch') : `${t(session, 'option')} #${idx + 1}`;
+    // Safely strip leading quantities/units using word-boundary helper so "2 liters water" -> "water" (never "iters water")
     const missingCleanNames = missing
       .slice(0, 4)
       .map((m) => stripLeadingMeasure(m))
@@ -1762,20 +1720,6 @@ function buildShoppingListCard(title, items, allIngredients = [], session = null
 
 // --- Gemini AI Generators (Pure Single-Language Output + Complete Ingredients Audit + 5–6 Detailed Steps) ---
 async function generateRecipesForSession(session, filterStyle = null) {
-  const userImage = imageCache.get(session.id)?.base64;
-  const cacheKey = session.lastPromptType === 'text'
-    ? `recipes:${session.lang}:${filterStyle || 'none'}:${session.lastText.trim().toLowerCase()}`
-    : null;
-
-  // Serve cached recipe JSON instantly if another tester queried the exact same ingredients & language
-  if (cacheKey && aiResponseCache.has(cacheKey)) {
-    const cached = aiResponseCache.get(cacheKey);
-    if (Date.now() - cached.ts < 10 * 60 * 1000) {
-      console.log(`⚡ Cache hit for ${cacheKey}`);
-      return buildRecipeCarousel(cached.data, session, true, filterStyle || '');
-    }
-  }
-
   const styleInstructions = {
     budget_60: 'Focus strictly on STUDENT BUDGET-FRIENDLY meals costing UNDER 60 THB per serving.',
     high_protein: 'Focus strictly on HIGH-PROTEIN fitness meals (40g+ protein).',
@@ -1810,12 +1754,12 @@ CRITICAL INGREDIENT & MISSING-ITEM AUDIT RULES (DO NOT SKIP ANY ITEM):
 3. "missingItems": Strictly compare "allIngredients" against ONLY what the user explicitly provided. Put EVERY SINGLE required ingredient that the user did NOT explicitly mention (including cooking oil, sauces, seasonings, sugar, salt, pepper, garlic, onion, chili, herbs, stock, and rice/noodles) inside "missingItems" with exact quantities! Never return only 1 missing item when the recipe also needs oil, sauces, seasonings, or aromatics that the user did not list.
 
 CRITICAL STEP-BY-STEP COOKING INSTRUCTIONS RULE:
-- "steps": Must contain 5 complete, clear, actionable cooking steps (1 concise sentence per step) so even a beginner can cook the dish from start to finish:
-- Step 1: Prep & cutting instructions with quantities.
-- Step 2: Heating the pan/wok (heat level + oil) and sautéing aromatics with time cue.
-- Step 3: Cooking the main protein or base ingredient with minutes and doneness cue.
-- Step 4: Adding vegetables, liquids/stock, and exact measurements of sauces/seasonings.
-- Step 5: Final toss/simmer, taste check, and serving instructions.
+- "steps": Must contain 5 to 6 complete, detailed, foolproof cooking steps so even a beginner can cook the dish from start to finish!
+- Step 1: Exact prep & cutting instructions (how to slice meat, mince aromatics, wash/cut veggies, or whisk sauces) with quantities.
+- Step 2: Heating the pan/wok (heat level + amount of oil) and sautéing aromatics with exact time and visual/aroma cue (e.g., "for 30–45 seconds until golden and fragrant").
+- Step 3: Cooking the main protein or base ingredient with exact minutes and doneness cue.
+- Step 4: Adding vegetables, liquids/stock, and exact measurements of every sauce/seasoning.
+- Step 5: Simmering/tossing/reducing the sauce, taste adjustment, and final garnish/plating instructions.
 
 Return ONLY valid JSON (no markdown) matching this exact structure:
 {
@@ -1852,43 +1796,27 @@ Return ONLY valid JSON (no markdown) matching this exact structure:
       ],
       "steps": [
         "Step 1 (Prep): Slice 200g chicken breast into thin bite-sized pieces and finely mince 4 cloves of garlic.",
-        "Step 2 (Aromatics): Heat 1 tbsp cooking oil in a pan over medium-high heat and stir-fry the garlic for 30 seconds until golden.",
-        "Step 3 (Protein): Add the sliced chicken breast and stir-fry for 3–4 minutes until cooked through.",
-        "Step 4 (Seasoning): Add 1 tbsp oyster sauce, 1 tbsp light soy sauce, 1 tsp fish sauce, 1/2 tsp sugar, and 2 tbsp water, tossing for 2 minutes.",
-        "Step 5 (Serve): Sprinkle with 1/4 tsp ground white pepper and serve hot over 1 cup of steamed jasmine rice."
+        "Step 2 (Aromatics): Heat 1 tbsp cooking oil in a pan over medium-high heat. Add the minced garlic and stir-fry for 30 seconds until golden and fragrant.",
+        "Step 3 (Protein): Add the sliced chicken breast and stir-fry for 3–4 minutes until the meat turns white and is 80% cooked through.",
+        "Step 4 (Seasoning): Add 1 tbsp oyster sauce, 1 tbsp light soy sauce, 1 tsp fish sauce, 1/2 tsp sugar, and 2 tbsp water. Toss over high heat for 2 minutes until the sauce coats the chicken evenly.",
+        "Step 5 (Serve): Turn off the heat, sprinkle with 1/4 tsp ground white pepper, and serve hot over 1 cup of steamed jasmine rice."
       ]
     }
   ]
 }
 Suggest 3 distinct, practical, delicious recipes.`;
 
-  const geminiContents = session.lastPromptType === 'image' && userImage
-    ? [{ inlineData: { mimeType: 'image/jpeg', data: userImage } }, `You are FridgeFriend, a master chef. Identify ONLY the ingredients visible in this photo and suggest 3 complete recipes. ${schemaPrompt}`]
+  const geminiContents = session.lastPromptType === 'image' && session.lastImageBase64
+    ? [{ inlineData: { mimeType: 'image/jpeg', data: session.lastImageBase64 } }, `You are FridgeFriend, a master chef. Identify ONLY the ingredients visible in this photo and suggest 3 complete recipes. ${schemaPrompt}`]
     : `You are FridgeFriend, a master chef. The user ONLY has these exact ingredients: "${session.lastText}". Assume they do NOT have any other ingredients unless listed in "missingItems". ${schemaPrompt}`;
 
   const response = await generateWithFallback(geminiContents, { responseMimeType: 'application/json' });
   const parsed = JSON.parse(response.text.replace(/```json|```/g, '').trim());
   const recipeList = Array.isArray(parsed) ? parsed : (parsed.recipes || parsed.meals || Object.values(parsed).find(Array.isArray) || []);
-
-  if (cacheKey && recipeList.length > 0) {
-    aiResponseCache.set(cacheKey, { data: recipeList, ts: Date.now() });
-  }
   return buildRecipeCarousel(recipeList, session, true, filterStyle || '');
 }
 
 async function generateMealPlanForSession(session) {
-  const userImage = imageCache.get(session.id)?.base64;
-  const cacheKey = session.lastPromptType !== 'image'
-    ? `plan:${session.lang}:${(session.lastText || 'default').trim().toLowerCase()}`
-    : null;
-
-  if (cacheKey && aiResponseCache.has(cacheKey)) {
-    const cached = aiResponseCache.get(cacheKey);
-    if (Date.now() - cached.ts < 10 * 60 * 1000) {
-      return buildMealPlanCarousel(cached.data, session);
-    }
-  }
-
   const langInstructions = {
     th: 'Write the entire meal plan strictly in 100% natural THAI (ภาษาไทยล้วน). Translate all ingredient names into Thai.',
     en: 'Write the entire meal plan strictly in 100% pure ENGLISH. Translate all ingredient names into English.',
@@ -1914,17 +1842,13 @@ Return ONLY valid JSON (no markdown) matching this exact format:
   "consolidatedShoppingList": ["600g chicken breast", "6 eggs", "1 head garlic", "1 bottle light soy sauce", "1 bottle oyster sauce", "1 bottle cooking oil", "1kg jasmine rice"]
 }`;
 
-  const geminiContents = session.lastPromptType === 'image' && userImage
-    ? [{ inlineData: { mimeType: 'image/jpeg', data: userImage } }, `Create a 3-day meal plan from this photo. ${planPrompt}`]
+  const geminiContents = session.lastPromptType === 'image' && session.lastImageBase64
+    ? [{ inlineData: { mimeType: 'image/jpeg', data: session.lastImageBase64 } }, `Create a 3-day meal plan from this photo. ${planPrompt}`]
     : `Create a 3-day meal plan based on: "${session.lastText || 'chicken breast, eggs, garlic, rice'}". ${planPrompt}`;
 
   const response = await generateWithFallback(geminiContents, { responseMimeType: 'application/json' });
   const parsed = JSON.parse(response.text.replace(/```json|```/g, '').trim());
   const normalizedPlan = Array.isArray(parsed) ? { days: parsed } : parsed;
-
-  if (cacheKey) {
-    aiResponseCache.set(cacheKey, { data: normalizedPlan, ts: Date.now() });
-  }
   return buildMealPlanCarousel(normalizedPlan, session);
 }
 
@@ -1969,28 +1893,16 @@ async function handleEvent(event) {
         my: '✅ မြန်မာဘာသာသို့ ပြောင်းလဲပြီးပါပြီ! ခလုတ်များနှင့် ဟင်းချက်နည်းအားလုံး မြန်မာလို ပြသပေးပါမည် 🍳',
         auto: '✅ Auto-detect enabled! 🌐',
       };
-      if (session.lastPromptType && !activeUsers.has(userId)) {
-        activeUsers.add(userId);
-        try {
-          if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-          const carousel = await generateRecipesForSession(session);
-          return await messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: confirmMap[lang] }, carousel] });
-        } finally {
-          activeUsers.delete(userId);
-        }
+      if (session.lastPromptType) {
+        if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
+        const carousel = await generateRecipesForSession(session);
+        return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: confirmMap[lang] }, carousel] });
       }
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: confirmMap[lang] }] });
     }
 
-    // --- Pantry Verification: Confirm (100% Free Unlimited replyMessage + Double-Tap Guard) ---
+    // --- Pantry Verification: Confirm (Sends status text immediately, then pushes recipes) ---
     if (action === 'pantry_confirm') {
-      if (activeUsers.has(userId)) {
-        return messagingClient.replyMessage({
-          replyToken: event.replyToken,
-          messages: [{ type: 'text', text: t(session, 'busyMsg') }],
-        });
-      }
-
       const batchId = params.get('batch');
       const items = pendingPantryItems.get(batchId);
       session.pantryEditMode = null;
@@ -2008,26 +1920,35 @@ async function handleEvent(event) {
         });
       }
 
-      pendingPantryItems.delete(batchId);
-      imageCache.delete(userId);
       session.lastPromptType = 'text';
       session.lastText = items.join(', ');
+      session.lastImageBase64 = null;
       recordPantryTrends(session.lastText, []);
       saveDB();
 
-      activeUsers.add(userId);
-      try {
-        if (event.source?.userId) {
-          messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-        }
-        const carousel = await generateRecipesForSession(session);
-        return await messagingClient.replyMessage({
+      const targetUserId = event.source?.userId;
+      if (targetUserId) {
+        // 1. Reply immediately so "Finding delicious recipes..." appears right away
+        await messagingClient.replyMessage({
           replyToken: event.replyToken,
-          messages: [{ type: 'text', text: t(session, 'confirmedHeader') }, carousel],
+          messages: [{ type: 'text', text: t(session, 'confirmedHeader') }],
         });
-      } finally {
-        activeUsers.delete(userId);
+        messagingClient.showLoadingAnimation({ chatId: targetUserId, loadingSeconds: 10 }).catch(() => {});
+
+        // 2. Generate recipes and push the carousel as soon as Gemini finishes
+        const carousel = await generateRecipesForSession(session);
+        return messagingClient.pushMessage({
+          to: targetUserId,
+          messages: [carousel],
+        });
       }
+
+      // Fallback if userId is unavailable
+      const carousel = await generateRecipesForSession(session);
+      return messagingClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [{ type: 'text', text: t(session, 'confirmedHeader') }, carousel],
+      });
     }
 
     // --- Pantry Verification: Edit -> ask Add or Delete ---
@@ -2036,7 +1957,7 @@ async function handleEvent(event) {
       if (!pendingPantryItems.has(batchId)) {
         return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: t(session, 'expired') }] });
       }
-      session.pantryEditMode = null;
+      session.pantryEditMode = null; // wait for the user to choose Add or Delete
       session.pantryBatchId = batchId;
       saveDB();
       return messagingClient.replyMessage({
@@ -2108,14 +2029,15 @@ async function handleEvent(event) {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildSingleStepCard(recipe, stepIdx, session)] });
     }
 
-    // --- Timer (100% Free Unlimited replyMessage — No Push Quota Used) ---
     if (action === 'timer') {
       const mins = parseInt(params.get('mins') || '5', 10);
       const dishTitle = params.get('title') || 'your dish';
-      return messagingClient.replyMessage({
-        replyToken: event.replyToken,
-        messages: [{ type: 'text', text: `⏱️ Timer reminder: cook ${dishTitle} for ${mins} minute(s)! 🔥🍳` }],
-      });
+      setTimeout(() => {
+        if (event.source?.userId) {
+          messagingClient.pushMessage({ to: event.source.userId, messages: [{ type: 'text', text: `⏰ Ding! Your ${mins}-minute timer for ${dishTitle} is up! 🔥🍳` }] }).catch((e) => console.error('Timer push failed:', e.message));
+        }
+      }, mins * 60 * 1000);
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `⏱️ Timer set for ${mins} minute(s)!` }] });
     }
 
     if (action === 'missing') {
@@ -2178,49 +2100,27 @@ async function handleEvent(event) {
     }
 
     if (action === 'receipt_cook') {
-      if (activeUsers.has(userId)) return null;
       const items = pendingReceiptItems.get(params.get('batch')) || [];
       if (items.length === 0) return null;
       session.lastPromptType = 'text';
       session.lastText = items.join(', ');
       recordPantryTrends(session.lastText, []);
-      activeUsers.add(userId);
-      try {
-        if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-        const carousel = await generateRecipesForSession(session);
-        return await messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `🍳 Cooking with your ${items.length} scanned receipt items:` }, carousel] });
-      } finally {
-        activeUsers.delete(userId);
-      }
+      if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
+      const carousel = await generateRecipesForSession(session);
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `🍳 Cooking with your ${items.length} scanned receipt items:` }, carousel] });
     }
 
     if (action === 'meal_plan') {
-      if (activeUsers.has(userId)) {
-        return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: t(session, 'busyMsg') }] });
-      }
-      activeUsers.add(userId);
-      try {
-        if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-        const planCarousel = await generateMealPlanForSession(session);
-        return await messagingClient.replyMessage({ replyToken: event.replyToken, messages: [planCarousel] });
-      } finally {
-        activeUsers.delete(userId);
-      }
+      if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
+      const planCarousel = await generateMealPlanForSession(session);
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [planCarousel] });
     }
 
     if (action === 'filter') {
       if (!session.lastPromptType) return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: 'Send ingredients or a fridge photo first! 🥦📸' }] });
-      if (activeUsers.has(userId)) {
-        return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: t(session, 'busyMsg') }] });
-      }
-      activeUsers.add(userId);
-      try {
-        if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-        const carousel = await generateRecipesForSession(session, params.get('style'));
-        return await messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
-      } finally {
-        activeUsers.delete(userId);
-      }
+      if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
+      const carousel = await generateRecipesForSession(session, params.get('style'));
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
     }
   }
 
@@ -2234,7 +2134,7 @@ async function handleEvent(event) {
     if (session.pantryEditMode && session.pantryBatchId) {
       const mode = session.pantryEditMode;
       const batchId = session.pantryBatchId;
-      session.pantryEditMode = null;
+      session.pantryEditMode = null; // one edit per Add/Delete choice, then show the list again
       saveDB();
 
       const current = pendingPantryItems.get(batchId);
@@ -2326,105 +2226,79 @@ async function handleEvent(event) {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [savedCarousel] });
     }
 
-    if (activeUsers.has(userId)) {
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: t(session, 'busyMsg') }] });
-    }
+    if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
+    session.lastPromptType = 'text';
+    session.lastText = rawText;
+    session.lastImageBase64 = null;
+    recordPantryTrends(rawText, []);
 
-    activeUsers.add(userId);
-    try {
-      if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-      session.lastPromptType = 'text';
-      session.lastText = rawText;
-      imageCache.delete(userId);
-      recordPantryTrends(rawText, []);
-
-      const carousel = await generateRecipesForSession(session);
-      return await messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
-    } finally {
-      activeUsers.delete(userId);
-    }
+    const carousel = await generateRecipesForSession(session);
+    return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [carousel] });
   }
 
   if (event.message.type === 'image') {
-    if (activeUsers.has(userId)) {
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: t(session, 'busyMsg') }] });
-    }
-
+    // A new photo cancels any half-finished ingredient edit
     session.pantryEditMode = null;
     session.pantryBatchId = null;
 
-    activeUsers.add(userId);
-    try {
-      if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-      const base64Image = await getMessageBase64(event.message.id);
+    if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
+    const base64Image = await getMessageBase64(event.message.id);
 
-      const scanLangHint = session.lang === 'my'
-        ? 'Write the item names strictly in natural Burmese (မြန်မာဘာသာသီးသန့်) without English in parentheses, and never use the word "အမယ်".'
-        : session.lang === 'th'
-        ? 'Write the item names strictly in natural Thai (ภาษาไทยล้วน) without English in parentheses.'
-        : 'Write the item names strictly in plain English.';
+    const scanLangHint = session.lang === 'my'
+      ? 'Write the item names strictly in natural Burmese (မြန်မာဘာသာသီးသန့်) without English in parentheses, and never use the word "အမယ်".'
+      : session.lang === 'th'
+      ? 'Write the item names strictly in natural Thai (ภาษาไทยล้วน) without English in parentheses.'
+      : 'Write the item names strictly in plain English.';
 
-      const classifyRes = await generateWithFallback(
-        [
-          { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
-          `Analyze this image carefully. Is it a shopping/grocery RECEIPT, or a photo of FOOD/FRIDGE ingredients? List every visible food ingredient accurately. ${scanLangHint} Return ONLY valid JSON: { "type": "receipt" or "food", "receiptFoodItems": ["item 1", "item 2"], "fridgeIngredients": ["chicken breast", "garlic", "tomato"] }`,
-        ],
-        { responseMimeType: 'application/json' }
-      );
+    const classifyRes = await generateWithFallback(
+      [
+        { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
+        `Analyze this image carefully. Is it a shopping/grocery RECEIPT, or a photo of FOOD/FRIDGE ingredients? List every visible food ingredient accurately. ${scanLangHint} Return ONLY valid JSON: { "type": "receipt" or "food", "receiptFoodItems": ["item 1", "item 2"], "fridgeIngredients": ["chicken breast", "garlic", "tomato"] }`,
+      ],
+      { responseMimeType: 'application/json' }
+    );
 
-      const parsedClass = JSON.parse(classifyRes.text.replace(/```json|```/g, '').trim());
-      if (parsedClass.type === 'receipt' && Array.isArray(parsedClass.receiptFoodItems) && parsedClass.receiptFoodItems.length > 0) {
-        const batchId = `${Date.now()}`;
-        pendingReceiptItems.set(batchId, parsedClass.receiptFoodItems);
-        recordPantryTrends(parsedClass.receiptFoodItems.join(', '), []);
-        return await messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildReceiptCard(parsedClass.receiptFoodItems, batchId)] });
-      }
-
-      const detectedIngredients = Array.isArray(parsedClass.fridgeIngredients) && parsedClass.fridgeIngredients.length > 0
-        ? parsedClass.fridgeIngredients
-        : ['chicken breast', 'garlic', 'eggs', 'rice'];
-
+    const parsedClass = JSON.parse(classifyRes.text.replace(/```json|```/g, '').trim());
+    if (parsedClass.type === 'receipt' && Array.isArray(parsedClass.receiptFoodItems) && parsedClass.receiptFoodItems.length > 0) {
       const batchId = `${Date.now()}`;
-      pendingPantryItems.set(batchId, [...detectedIngredients]);
-      imageCache.set(userId, { base64: base64Image, ts: Date.now() });
-      session.lastPromptType = 'image';
-      saveDB();
-
-      return await messagingClient.replyMessage({
-        replyToken: event.replyToken,
-        messages: [buildPantryVerificationCard(detectedIngredients, batchId, session)],
-      });
-    } finally {
-      activeUsers.delete(userId);
+      pendingReceiptItems.set(batchId, parsedClass.receiptFoodItems);
+      recordPantryTrends(parsedClass.receiptFoodItems.join(', '), []);
+      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildReceiptCard(parsedClass.receiptFoodItems, batchId)] });
     }
+
+    const detectedIngredients = Array.isArray(parsedClass.fridgeIngredients) && parsedClass.fridgeIngredients.length > 0
+      ? parsedClass.fridgeIngredients
+      : ['chicken breast', 'garlic', 'eggs', 'rice'];
+
+    const batchId = `${Date.now()}`;
+    pendingPantryItems.set(batchId, [...detectedIngredients]);
+    session.lastImageBase64 = base64Image;
+    session.lastPromptType = 'image';
+    saveDB();
+
+    return messagingClient.replyMessage({
+      replyToken: event.replyToken,
+      messages: [buildPantryVerificationCard(detectedIngredients, batchId, session)],
+    });
   }
 
   if (event.message.type === 'audio') {
-    if (activeUsers.has(userId)) {
-      return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: t(session, 'busyMsg') }] });
-    }
+    if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
+    const base64Audio = await getMessageBase64(event.message.id);
 
-    activeUsers.add(userId);
-    try {
-      if (event.source?.userId) messagingClient.showLoadingAnimation({ chatId: event.source.userId, loadingSeconds: 10 }).catch(() => {});
-      const base64Audio = await getMessageBase64(event.message.id);
+    const transcribeRes = await generateWithFallback([
+      { inlineData: { mimeType: 'audio/m4a', data: base64Audio } },
+      'Extract ONLY the food ingredients spoken in this voice note as a concise comma-separated phrase, keeping the exact language spoken (Burmese, Thai, or English).',
+    ]);
 
-      const transcribeRes = await generateWithFallback([
-        { inlineData: { mimeType: 'audio/m4a', data: base64Audio } },
-        'Extract ONLY the food ingredients spoken in this voice note as a concise comma-separated phrase, keeping the exact language spoken (Burmese, Thai, or English).',
-      ]);
+    const spokenIngredients = transcribeRes.text.trim();
+    session.lastPromptType = 'text';
+    session.lastText = spokenIngredients;
+    session.lastImageBase64 = null;
+    recordPantryTrends(spokenIngredients, []);
 
-      const spokenIngredients = transcribeRes.text.trim();
-      session.lastPromptType = 'text';
-      session.lastText = spokenIngredients;
-      imageCache.delete(userId);
-      recordPantryTrends(spokenIngredients, []);
-
-      const carousel = await generateRecipesForSession(session);
-      return await messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `🎙️ Heard: "${spokenIngredients}"` }, carousel] });
-    } finally {
-      activeUsers.delete(userId);
-    }
+    const carousel = await generateRecipesForSession(session);
+    return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: `🎙️ Heard: "${spokenIngredients}"` }, carousel] });
   }
 
   return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildWelcomeCard()] });
