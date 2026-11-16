@@ -77,6 +77,7 @@ const UI_STRINGS = {
     verifySubtitle: 'We detected these items in your photo. Are they correct?',
     confirmBtn: '✅ Correct & Find Recipes',
     editBtn: '✏️ Edit Ingredients',
+    confirmedHeader: '🍳 Finding delicious recipes for your items...',
     // --- Edit flow ---
     detected: 'Detected ingredients',
     editChoiceTitle: '✏️ Edit Ingredients',
@@ -1930,7 +1931,7 @@ async function handleEvent(event) {
         // 1. Reply immediately so "Finding delicious recipes..." appears right away
         await messagingClient.replyMessage({
           replyToken: event.replyToken,
-          messages: [{ type: 'text', text: t(session) }],
+          messages: [{ type: 'text', text: t(session, 'confirmedHeader') }],
         });
         messagingClient.showLoadingAnimation({ chatId: targetUserId, loadingSeconds: 10 }).catch(() => {});
 
