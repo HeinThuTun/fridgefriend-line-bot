@@ -663,7 +663,7 @@ async function getAvailableModels() {
 
 // Ultra-fast sequential fallback with thinkingBudget: 0 + dynamic discovery safety net
 async function generateWithFallback(contents, config = {}) {
-  const primaryModels = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'];
+  const primaryModels = ['gemini-2.5-flash-lite', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
   const discovered = cachedModels || [];
   const models = [...new Set([...primaryModels, ...discovered])];
   let lastErr;
