@@ -1930,7 +1930,7 @@ async function handleEvent(event) {
         // 1. Reply immediately so "Finding delicious recipes..." appears right away
         await messagingClient.replyMessage({
           replyToken: event.replyToken,
-          messages: [{ type: 'text', text: t(session, 'confirmedHeader') }],
+          messages: [{ type: 'text', text: t(session) }],
         });
         messagingClient.showLoadingAnimation({ chatId: targetUserId, loadingSeconds: 10 }).catch(() => {});
 
