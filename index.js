@@ -1980,7 +1980,7 @@ async function handleEvent(event) {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: confirmMap[lang] }] });
     }
 
-    // --- Pantry Verification: Confirm (100% Free Unlimited replyMessage + Double-Tap Guard) ---
+    // --- Pantry Verification: Confirm (100% Free replyMessage + Native Loading Animation) ---
     if (action === 'pantry_confirm') {
       if (activeUsers.has(userId)) {
         return messagingClient.replyMessage({
