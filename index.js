@@ -2191,6 +2191,22 @@ async function handleEvent(event) {
       });
     }
 
+    if (lower === 'cancel' || lower === 'cancel gym' || lower === 'unlink') {
+      if (session.gymPartner && (db.analytics.gymActivations || 0) > 0) {
+        db.analytics.gymActivations -= 1;
+      }
+      session.gymPartner = null;
+      session.goals = { calories: 2000, protein: 130, label: 'Balanced (2000 kcal)' };
+      saveDB();
+      return messagingClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [
+          { type: 'text', text: '✅ Gym partner unlinked and targets reset to default!' },
+          buildStatsCard(session),
+        ],
+      });
+    }
+
     if (lower === 'revenue' || lower === 'ads' || lower === 'business') {
       return messagingClient.replyMessage({ replyToken: event.replyToken, messages: [buildB2BRevenueCard(session)] });
     }
